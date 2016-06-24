@@ -1,6 +1,7 @@
 module HMMIDs
-using Bio.Seq
 import JSON
+using Bio.Seq.FASTQ
+include("Nucleotides.jl")
 
 #const MAX_SHIFT = 30
 #const MAX_INDEL = 15
@@ -13,7 +14,7 @@ const L_PROBABILITY_PER_EXTRA_BASE = log(0.05)
 
 type ObservableState
   index::Int64
-  value::DNANucleotide
+  value::DNASymbol
 end
 
 type StartingState
@@ -27,8 +28,8 @@ end
 State = Union{ObservableState, StartingState, RepeatingAnyState}
 
 type Observation
-  value::DNANucleotide
-  l_prob::Float64
+  value::DNASymbol
+  prob::Float64
 end
 
 function emition_prob(observation::Observation, state::State)
@@ -36,12 +37,8 @@ function emition_prob(observation::Observation, state::State)
     return -Inf
   elseif typeof(state) <: RepeatingAnyState
     return log(0.25)
-  elseif state.value == DNA_N
-    return log(0.25)
-  elseif state.value == observation.value
-    return observation.l_prob
   else
-    return log((1 - exp(observation.l_prob)) / 4)
+    return log(prob(state.value, observation.value, observation.prob))
   end
 end
 
@@ -77,14 +74,14 @@ end
 
 function viterbi(observations::Array{Observation,1}, states::Array{State,1})
   previous_best_probabilities = Dict{Int64, Float64}(1 => 1.0)
-  previous_tags = Dict{Int64, Array{DNANucleotide,1}}()
+  previous_tags = Dict{Int64, Array{DNASymbol,1}}()
   previous_sequence = Dict{Int64, Array{Int64,1}}()
 
   for obs_i in 1:length(observations)
     # Current Probabilities
     current_best_probabilities = Dict{Int64, Float64}()
     # Current Tags
-    current_tags = Dict{Int64, Array{DNANucleotide,1}}()
+    current_tags = Dict{Int64, Array{DNASymbol,1}}()
     current_sequence = Dict{Int64, Array{Int64,1}}()
     for current_state_i in sliding_window(:MAX_SHIFT, length(states), obs_i)
       best_previous_state_i = -1
@@ -99,7 +96,7 @@ function viterbi(observations::Array{Observation,1}, states::Array{State,1})
       end
       prob = best_path_prob + emition_prob(observations[obs_i], states[current_state_i])
       current_best_probabilities[current_state_i] = prob
-      current_tags[current_state_i] = copy(get(previous_tags, best_previous_state_i, Array{DNANucleotide,1}()))
+      current_tags[current_state_i] = copy(get(previous_tags, best_previous_state_i, Array{DNASymbol,1}()))
       if (typeof(states[current_state_i]) <: ObservableState) && states[current_state_i].value == DNA_N
           push!(current_tags[current_state_i], observations[obs_i].value)
       end
@@ -131,7 +128,7 @@ function string_to_states(string_sequence)
     if char == '*'
       state = RepeatingAnyState(i)
     else
-      state = ObservableState(i, convert(DNANucleotide, char))
+      state = ObservableState(i, convert(DNASymbol, char))
     end
     push!(states, state)
     i += 1
@@ -139,16 +136,16 @@ function string_to_states(string_sequence)
   return states
 end
 
-function fastq_score_to_l_prob(score)
+function fastq_score_to_prob(score)
   # According to Wikipedia, score = -10*log10(e) where e is probability of base being wrong
   prob_wrong = exp10(score * -0.1)
-  return log(1 - prob_wrong)
+  return 1 - prob_wrong
 end
 
 function sequence_to_observations(sequence, quality)
   observations = Array{Observation,1}()
   for (base, score) in zip(sequence, quality)
-    push!(observations, Observation(base, fastq_score_to_l_prob(score)))
+    push!(observations, Observation(convert(DNASymbol, base), fastq_score_to_prob(score)))
   end
   return observations
 end
@@ -194,7 +191,7 @@ function process(json_file)
         best_tag = "None"
         for plex in section["multiplexes"]
           score, tag, hmmsequence = viterbi(observations, plex["states"])
-          printif(section, "print_all_scores", "$(plex["name"]) $(round(score, 2)) $(join(tag, ""))\n")
+          printif(section, "print_all_scores", "$(plex["name"]) $(round(score, 2)) $(join(map(string, tag), ""))\n")
           if score > best_plex_score
             best_plex_score = score
             best_plex = plex["name"]
@@ -202,7 +199,7 @@ function process(json_file)
           end
         end
         printif(section, "print_plex", "\t$(best_plex)")
-        printif(section, "print_tag", "\t$(join(best_tag, ""))")
+        printif(section, "print_tag", "\t$(join(map(string, best_tag), ""))")
         printif(section, "print_score", "\t$(round(best_plex_score, 2))")
         println()
       end
