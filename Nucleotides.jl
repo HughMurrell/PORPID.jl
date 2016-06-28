@@ -1,7 +1,3 @@
-import Bio
-import Bio.Seq
-import Bio.Seq.DNANucleotide
-
 @enum DNANucleotide DNA_A=1 DNA_C=2 DNA_G=3 DNA_T=4
 @enum DNANucCombo DNA_R=1 DNA_Y=2 DNA_M=3 DNA_K=4 DNA_S=5 DNA_W=6 DNA_H=7 DNA_B=8 DNA_V=9 DNA_D=10 DNA_N=11
 
@@ -74,11 +70,6 @@ end
 
 function convert(DNASymbol, symbol::DNASymbol)
   return symbol
-end
-
-function convert(DNASymbol, bio_dna_nucleotide::Bio.Seq.DNANucleotide)
-  chr = Char(bio_dna_nucleotide)
-  return convert(DNASymbol, chr)
 end
 
 function convert(DNASymbol, char::Char)
