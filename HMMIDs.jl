@@ -1,6 +1,5 @@
 module HMMIDs
 import JSON
-using Bio.Seq.FASTQ
 include("Nucleotides.jl")
 
 #const MAX_SHIFT = 30
@@ -176,14 +175,14 @@ function process(json_file)
 
   for file_name in params["files"]
     printif(params, "print_filename", "$(file_name)\n")
-    for sequence in open(file_name, FASTQ)
-      printif(params, "print_sequence", "  $(sequence.name)\n")
+    for sequence in FastqIterator(file_name)
+      printif(params, "print_sequence", "  $(sequence.label)\n")
       for section in params["sections"]
         printif(section, "print_section", "    $(section["name"])\n")
         start_i = py_index_to_julia(get(section, "start_inclusive", 0), length(sequence.seq))
         end_i = py_index_to_julia(get(section, "end_inclusive", -1), length(sequence.seq))
         printif(section, "print_subsequence", "$(sequence.seq[start_i:end_i])\n")
-        observations = sequence_to_observations(sequence.seq[start_i:end_i], sequence.metadata.quality[start_i:end_i])
+        observations = sequence_to_observations(sequence.seq[start_i:end_i], sequence.quality[start_i:end_i])
 
         # Find best matching plex (group in a multiplexed sample)
         best_plex_score = -Inf

@@ -72,6 +72,10 @@ function Base.string(symbol::DNASymbol)
   return repr(symbol)[5]
 end
 
+function convert(DNASymbol, symbol::DNASymbol)
+  return symbol
+end
+
 function convert(DNASymbol, bio_dna_nucleotide::Bio.Seq.DNANucleotide)
   chr = Char(bio_dna_nucleotide)
   return convert(DNASymbol, chr)
@@ -83,5 +87,57 @@ function convert(DNASymbol, char::Char)
     return letter_to_nucleotide[char]
   elseif char in keys(letter_to_nuc_combo)
     return letter_to_nuc_combo[char]
+  else
+    throw(DomainError())
   end
+end
+
+immutable FastqIterator
+  line_iterator::EachLine
+end
+
+type Sequence
+  label::ASCIIString
+  seq::Array{DNASymbol}
+  quality::Array{Int8}
+end
+
+function char_to_quality(char)
+  return Int(char) - 33
+end
+
+FastqIterator(file_name::ASCIIString) = FastqIterator(eachline(open(file_name)))
+Base.start(fi::FastqIterator) = start(fi.line_iterator)
+Base.done(fi::FastqIterator, state) = done(fi.line_iterator, state)
+
+function Base.next(fi::FastqIterator, state)
+  label = nothing
+  if typeof(state) <: ASCIIString
+    label = state
+  end
+  sequence = Array{DNASymbol,1}()
+  quality = Array{Int8,1}()
+  seen_plus = false
+  while !done(fi.line_iterator, state)
+    line, _state = next(fi.line_iterator, nothing)
+    line = chomp(line)
+    if line[1] == '@'
+      if seen_plus
+        return Sequence(label, sequence, quality), line[2:end]
+      else
+        label = line[2:end]
+      end
+    elseif line[1] == '+'
+      seen_plus = true
+    elseif seen_plus
+      for char in line
+        push!(quality, char_to_quality(char))
+      end
+    else
+      for char in line
+        push!(sequence, convert(DNASymbol, char))
+      end
+    end
+  end
+  return Sequence(label, sequence, quality), nothing
 end
