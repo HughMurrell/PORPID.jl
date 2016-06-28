@@ -115,29 +115,24 @@ function Base.next(fi::FastqIterator, state)
   if typeof(state) <: ASCIIString
     label = state
   end
+  line = chomp(next(fi.line_iterator, nothing)[1])
+  assert(line[1] == '@')
+  label = line[2:end]
+
+  line = chomp(next(fi.line_iterator, nothing)[1])
   sequence = Array{DNASymbol,1}()
-  quality = Array{Int8,1}()
-  seen_plus = false
-  while !done(fi.line_iterator, state)
-    line, _state = next(fi.line_iterator, nothing)
-    line = chomp(line)
-    if line[1] == '@'
-      if seen_plus
-        return Sequence(label, sequence, quality), line[2:end]
-      else
-        label = line[2:end]
-      end
-    elseif line[1] == '+'
-      seen_plus = true
-    elseif seen_plus
-      for char in line
-        push!(quality, char_to_quality(char))
-      end
-    else
-      for char in line
-        push!(sequence, convert(DNASymbol, char))
-      end
-    end
+  for char in line
+    push!(sequence, convert(DNASymbol, char))
   end
+
+  line = chomp(next(fi.line_iterator, nothing)[1])
+  assert(line[1] == '+')
+
+  line = chomp(next(fi.line_iterator, nothing)[1])
+  quality = Array{Int8,1}()
+  for char in line
+    push!(quality, char_to_quality(char))
+  end
+
   return Sequence(label, sequence, quality), nothing
 end
