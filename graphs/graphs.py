@@ -18,10 +18,14 @@ def tag_dist(input_file):
     for count in tags.values():
         max_count = max(max_count, count)
         count_dist[count] = count_dist[count] + 1
-    for i in range(max_count + 1):
-        print(i, count_dist[i])
-    #for tag, count in sorted(tags.items(), key=lambda x:x[1]):
-    #    print(tag, count)
+    count_counts = [count_dist[i] for i in range(1, max_count + 1)]
+    bars = plt.bar([0.125 + x for x in range(max_count)], count_counts, log=True)
+    plt.xlabel('Number of copies in bin')
+    plt.ylabel('Unique ID\'s with bin size')
+    plt.xticks([0.5 + x for x in range(max_count)], range(1, max_count+1))
+    plt.savefig('bin_sizes')
+    #plt.show()
+    plt.cla()
 
 def likelihood_cutoffs(input_file):
     num_bins = 20
