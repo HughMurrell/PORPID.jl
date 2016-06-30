@@ -1,10 +1,14 @@
 from collections import namedtuple, defaultdict
-from matplotlib import pyplot as plt
+try:
+    from matplotlib import pyplot as plt
+except ImportError:
+    print("Matplotlib does not seem to be available. Try 'pip install matplotlib'\nError:")
+    raise
+import argparse
 
-def tag_dist(file_name):
+def tag_dist(input_file):
     tags = defaultdict(lambda: 0)
-    file = open(file_name)
-    for line in file:
+    for line in input_file:
         l = line.strip()
         if len(l) == 0:
             continue
@@ -19,11 +23,10 @@ def tag_dist(file_name):
     #for tag, count in sorted(tags.items(), key=lambda x:x[1]):
     #    print(tag, count)
 
-def likelihood_cutoffs(file_name):
+def likelihood_cutoffs(input_file):
     num_bins = 20
 
     templates = defaultdict(list)
-    input_file = open(file_name)
     for line in input_file:
         parts = line.strip().split()
         if len(parts) <= 1: continue
@@ -39,5 +42,12 @@ def likelihood_cutoffs(file_name):
         #plt.show()
         plt.cla()
 
-#tag_dist("public_data_tags.out")
-likelihood_cutoffs("likelihood_data.out")
+parser = argparse.ArgumentParser(description="Get info on PrimerID results")
+parser.add_argument('command', type=str, choices=["tag_dist", "likelihoods"], default="tag_dist")
+parser.add_argument('input', type=argparse.FileType('r'), help="the location of primer id results file to visualise")
+args = parser.parse_args()
+
+if args.command == "tag_dist":
+    tag_dist(args.input)
+elif args.command == "likelihoods":
+    likelihood_cutoffs(args.input)
