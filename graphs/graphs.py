@@ -18,11 +18,21 @@ def tag_dist(input_file):
     for count in tags.values():
         max_count = max(max_count, count)
         count_dist[count] = count_dist[count] + 1
-    count_counts = [count_dist[i] for i in range(1, max_count + 1)]
-    bars = plt.bar(range(max_count), count_counts, width=1.0, linewidth=0, log=True)
+    plt.figure(figsize=(30, 5), dpi=300)
+    if max_count <= 1000:
+        count_counts = [count_dist[i] for i in range(1, max_count + 1)]
+        bars = plt.bar(range(max_count), count_counts, width=1.0, linewidth=0, log=True)
+        plt.ylim(0.1)
+        xtick_spacing = max(1, int(round(max_count / 250.0) * 5))
+        plt.xticks([xtick_spacing/2.0 + x for x in range(0, max_count, xtick_spacing)], range(0, max_count, xtick_spacing), rotation='vertical')
+    else:
+        num_bins = 50
+        array = list(tags.values())
+        n, bins, patches = plt.hist(array, num_bins, log=True)
+        plt.ylim(0.1)
+        plt.xticks(rotation='vertical')
     plt.xlabel('Number of copies in bin')
     plt.ylabel('Unique ID\'s with bin size')
-    plt.xticks([0.5 + x for x in range(max_count)], range(1, max_count+1))
     plt.savefig('bin_sizes')
     #plt.show()
     plt.cla()
