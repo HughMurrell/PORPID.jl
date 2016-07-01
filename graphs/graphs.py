@@ -1,5 +1,7 @@
 from collections import namedtuple, defaultdict
 try:
+    import matplotlib as mpl
+    mpl.use('Agg')
     from matplotlib import pyplot as plt
 except ImportError:
     print("Matplotlib does not seem to be available. Try 'pip install matplotlib'\nError:")
@@ -26,11 +28,10 @@ def tag_dist(input_file):
         xtick_spacing = max(1, int(round(max_count / 250.0) * 5))
         plt.xticks([xtick_spacing/2.0 + x for x in range(0, max_count, xtick_spacing)], range(0, max_count, xtick_spacing), rotation='vertical')
     else:
-        num_bins = 50
+        num_bins = 250
         array = list(tags.values())
         n, bins, patches = plt.hist(array, num_bins, log=True)
         plt.ylim(0.1)
-        plt.xticks(rotation='vertical')
     plt.xlabel('Number of copies in bin')
     plt.ylabel('Unique ID\'s with bin size')
     plt.savefig('bin_sizes')
