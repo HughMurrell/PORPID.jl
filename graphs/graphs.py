@@ -13,14 +13,22 @@ except ImportError:
     raise
 import argparse
 
-def tag_dist(input_file):
+def tag_dist(input_file, line_order=["id"], threshold=None):
+    if "id" not in line_order:
+        print("Tag distribution needs id's")
+        return
+
     tags = defaultdict(lambda: 0)
     for line in input_file:
-        l = line.strip()
-        if len(l) == 0:
+        parts = line.strip().split()
+        if len(parts) != len(line_order):
             continue
-        parts = l.split()
-        tags[parts[0]] = tags[parts[0]] + 1
+        if threshold is not None and "likelihood" in line_order:
+            likelihood = float(parts[line_order.index("likelihood")])
+            if likelihood < threshold:
+                continue
+        barcode = parts[line_order.index("id")]
+        tags[barcode] += 1
     max_count = 0
     count_dist = defaultdict(lambda: 0)
     for count in tags.values():
@@ -121,14 +129,21 @@ parser = argparse.ArgumentParser(description="Get info on PrimerID results")
 parser.add_argument('command', type=str, choices=["tag_dist", "likelihoods", "comparative"], default="tag_dist")
 parser.add_argument('input', type=argparse.FileType('r'), help="the location of primer id results file to visualise")
 parser.add_argument('-f', '--format', metavar='keyword', action='append', choices=["template", "id", "likelihood"], help='The format of the lines')
+parser.add_argument('-t', '--threshold', type=float, help='Likelihood threshold below which lines are ignored')
 args = parser.parse_args()
 
 if args.command == "tag_dist":
-    tag_dist(args.input)
+    if args.format is not None and args.threshold is not None:
+        tag_dist(args.input, args.format, args.threshold)
+    else:
+        tag_dist(args.input)
 elif args.command == "likelihoods":
-    if args.format != None:
+    if args.format is not None:
         likelihood_cutoffs(args.input, args.format)
     else:
         likelihood_cutoffs(args.input)
 elif args.command == "comparative":
-    comparative_likelihood(args.input)
+    if args.format is not None:
+        comparative_likelihood(args.input, args.format)
+    else:
+        comparative_likelihood(args.input)
