@@ -69,7 +69,7 @@ def likelihood_cutoffs(input_file, line_order=["likelihood"]):
 
 def comparative_likelihood(input_file, line_order=["template", "likelihood"]):
     num_bins = 50
-    if "likelihood" not in line_order or if "template" not in line_order:
+    if "likelihood" not in line_order or "template" not in line_order:
         print("Comparative likelihood needs templates and likelihood scores")
         return
     relative_score = defaultdict(list)
