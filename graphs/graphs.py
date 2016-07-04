@@ -1,10 +1,15 @@
 from collections import namedtuple, defaultdict
 try:
     import matplotlib as mpl
-    mpl.use('Agg')
+#    mpl.use('Agg')
     from matplotlib import pyplot as plt
 except ImportError:
     print("Matplotlib does not seem to be available. Try 'pip install matplotlib'\nError:")
+    raise
+try:
+    import numpy as np
+except ImportError:
+    print("Numpy does not seem to be available. Try 'pip install numpy'\nError:")
     raise
 import argparse
 
@@ -14,7 +19,8 @@ def tag_dist(input_file):
         l = line.strip()
         if len(l) == 0:
             continue
-        tags[l] = tags[l] + 1
+        parts = l.split()
+        tags[parts[0]] = tags[parts[0]] + 1
     max_count = 0
     count_dist = defaultdict(lambda: 0)
     for count in tags.values():
@@ -38,16 +44,20 @@ def tag_dist(input_file):
     #plt.show()
     plt.cla()
 
-def likelihood_cutoffs(input_file):
-    num_bins = 20
-
+def likelihood_cutoffs(input_file, line_order=["likelihood"]):
+    num_bins = 50
+    if "likelihood" not in line_order:
+        print("Likelihood cutoff needs a likelihood score")
+        return
     templates = defaultdict(list)
     for line in input_file:
         parts = line.strip().split()
-        if len(parts) <= 1: continue
-        template = parts[0]
-        score = float(parts[1])
-        templates[template].append(score)
+        if len(parts) != len(line_order): continue
+        likelihood = float(parts[line_order.index("likelihood")])
+        templates["All"].append(likelihood)
+        if "template" in line_order:
+            template = parts[line_order.index("template")]
+            templates[template].append(likelihood)
     for template, scores in sorted(templates.items()):
         n, bins, patches = plt.hist(scores, num_bins)
         plt.xlabel('Likelihood')
@@ -57,12 +67,68 @@ def likelihood_cutoffs(input_file):
         #plt.show()
         plt.cla()
 
+def comparative_likelihood(input_file, line_order=["template", "likelihood"]):
+    num_bins = 50
+    if "likelihood" not in line_order or if "template" not in line_order:
+        print("Comparative likelihood needs templates and likelihood scores")
+        return
+    relative_score = defaultdict(list)
+    group = []
+    best_score = float("-Inf")
+    best_template = None
+    for line in input_file:
+        parts = line.strip().split()
+        if len(parts) != len(line_order):
+            # Ending a group
+            if len(group) == 0: # There hasn't been a group yet
+                continue
+            for template, score in group:
+                relative_score[(best_template, template)].append(score)
+            # Reset group
+            group = []
+            best_score = float("-Inf")
+            best_template = None
+            continue
+
+        template = parts[line_order.index("template")]
+        score = float(parts[line_order.index("likelihood")])
+        if score > best_score:
+            best_score = score
+            best_template = template
+        group.append((template, score))
+
+    others = defaultdict(list)
+    for winner, other in relative_score.keys():
+        others[winner].append(other)
+
+    for winner in others.keys():
+        print(winner)
+        for other in others[winner]:
+            data = np.array(relative_score[(winner, other)])
+            y,binEdges=np.histogram(data, bins=50)
+            bincenters = 0.5*(binEdges[1:]+binEdges[:-1])
+            plt.plot(bincenters, y ,'-', label=other)
+        plt.xlabel('Likelihood')
+        plt.ylabel('Frequency')
+        plt.title(winner)
+        plt.legend(loc='upper left')
+        #plt.savefig(winner)
+        plt.show()
+        plt.cla()
+
+
 parser = argparse.ArgumentParser(description="Get info on PrimerID results")
-parser.add_argument('command', type=str, choices=["tag_dist", "likelihoods"], default="tag_dist")
+parser.add_argument('command', type=str, choices=["tag_dist", "likelihoods", "comparative"], default="tag_dist")
 parser.add_argument('input', type=argparse.FileType('r'), help="the location of primer id results file to visualise")
+parser.add_argument('-f', '--format', metavar='keyword', action='append', choices=["template", "id", "likelihood"], help='The format of the lines')
 args = parser.parse_args()
 
 if args.command == "tag_dist":
     tag_dist(args.input)
 elif args.command == "likelihoods":
-    likelihood_cutoffs(args.input)
+    if args.format != None:
+        likelihood_cutoffs(args.input, args.format)
+    else:
+        likelihood_cutoffs(args.input)
+elif args.command == "comparative":
+    comparative_likelihood(args.input)
