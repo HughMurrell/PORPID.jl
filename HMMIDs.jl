@@ -149,11 +149,15 @@ function sequence_to_observations(sequence, quality)
   return observations
 end
 
-function py_index_to_julia(py_index, length)
+function py_index_to_julia(py_index, length, bound=false)
   if py_index < 0
     py_index += length
   end
-  return py_index + 1
+  if bound
+    return min(length, max(1, py_index))
+  else
+    return py_index + 1
+  end
 end
 
 function printif(dict, key, string)
@@ -179,8 +183,8 @@ function process(json_file)
       printif(params, "print_sequence", "  $(sequence.label)\n")
       for section in params["sections"]
         printif(section, "print_section", "    $(section["name"])\n")
-        start_i = py_index_to_julia(get(section, "start_inclusive", 0), length(sequence.seq))
-        end_i = py_index_to_julia(get(section, "end_inclusive", -1), length(sequence.seq))
+        start_i = py_index_to_julia(get(section, "start_inclusive", 0), length(sequence.seq), true)
+        end_i = py_index_to_julia(get(section, "end_inclusive", -1), length(sequence.seq), true)
         printif(section, "print_subsequence", "$(sequence.seq[start_i:end_i])\n")
         observations = sequence_to_observations(sequence.seq[start_i:end_i], sequence.quality[start_i:end_i])
 
