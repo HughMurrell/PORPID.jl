@@ -1,0 +1,22 @@
+{
+  "files": ["CAP256/CAP256_4180_082wpi_v1v3_5t.fastq"],
+  "print_filename": false,
+  "print_sequence": true,
+  "sections": [{
+      "name": "PrimerId",
+      "start_inclusive": 0,
+      "end_inclusive": -1,
+      "print_section": false,
+      "print_subsequence": false,
+      "print_all_scores": false,
+      "print_plex": false,
+      "print_tag": true,
+      "print_score": false,
+      "multiplexes": [
+        {"name":"CA", "reference":"*CAGGAGGGGACCTAGAAATTACAACNNNNNNNNNCTGAGCGTGTGGCAAGGC*"},
+        {"name":"CG", "reference":"*CAGGAGGGGACCTAGAAGTTACAACNNNNNNNNNCTGAGCGTGTGGCAAGGC*"},
+        {"name":"TA", "reference":"*CAGGAGGGGATCTAGAAATTACAACNNNNNNNNNCTGAGCGTGTGGCAAGGC*"},
+        {"name":"TG", "reference":"*CAGGAGGGGATCTAGAAGTTACAACNNNNNNNNNCTGAGCGTGTGGCAAGGC*"}
+      ]
+    }]
+}

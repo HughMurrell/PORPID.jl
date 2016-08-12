@@ -11,18 +11,9 @@
       "print_all_scores": false,
       "print_plex": false,
       "print_tag": true,
-      "print_score": false,
+      "print_score": true,
       "multiplexes": [
         {"name":"template", "reference":"NNNNNNNNNNCAGTTTAACTTTTGGGCCATCCATTCC*"}
       ]
-    }, {
-      "name": "PrimerId - Find Primer",
-      "print_section": false,
-      "print_tag": false,
-      "print_score": false,
-      "multiplexes": [
-        {"name":"template", "reference":"*NNNNNNNNNNCAGTTTAACTTTTGGGCCATCCATTCC*"}
-      ]
-    }
-  ]
+    }]
 }

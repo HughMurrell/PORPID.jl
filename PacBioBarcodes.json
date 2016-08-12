@@ -1,0 +1,26 @@
+{
+  "files": ["PacBioBarcodes/HIVenv_Mix3_10pM_ROIx6.fastq"],
+  "print_filename": true,
+  "print_sequence": true,
+  "sections": [{
+      "name": "Forward&ReversePrimer",
+      "print_section": true,
+      "start_inclusive": 0,
+      "end_inclusive": 36,
+      "print_subsequence": false,
+      "print_all_scores": true,
+      "print_plex": false,
+      "print_tag": false,
+      "print_score": false,
+      "multiplexes": [
+        {"name":"EnvFwd_X", "reference":"GCTAGATGAGCAGAAGACAGTGGCAATGA*"},
+        {"name":"EnvFwd_Y", "reference":"CTACAGAGAGCAGAAGACAGTGGCAATGA*"},
+        {"name":"EnvFwd_Z", "reference":"CAGTAGTGAGCAGAAGACAGTGGCAATGA*"},
+        {"name":"EnvRev_A", "reference":"AGATGTACCACTTGCCACCCATBTTATAGCA*"},
+        {"name":"EnvRev_B", "reference":"TAGTACACCACTTGCCACCCATBTTATAGCA*"},
+        {"name":"EnvRev_C", "reference":"CATGTGTCCACTTGCCACCCATBTTATAGCA*"},
+        {"name":"EnvRev_D", "reference":"CACGATACCACTTGCCACCCATBTTATAGCA*"}
+      ]
+    }
+  ]
+}

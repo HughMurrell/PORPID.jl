@@ -1,0 +1,16 @@
+{
+  "files": ["debug.fastq"],
+  "sections": [{
+      "name": "PrimerId",
+      "start_inclusive": 0,
+      "end_inclusive": -1,
+
+      "print_subsequence": false,
+      "multiplexes": [
+        {"name":"CA", "reference":"*CAGGAGGGGACCTAGAAATTACAACNNNNNNNNNCTGAGCGTGTGGCAAGGC*"},
+        {"name":"CG", "reference":"*CAGGAGGGGACCTAGAAGTTACAACNNNNNNNNNCTGAGCGTGTGGCAAGGC*"},
+        {"name":"TA", "reference":"*CAGGAGGGGATCTAGAAATTACAACNNNNNNNNNCTGAGCGTGTGGCAAGGC*"},
+        {"name":"TG", "reference":"*CAGGAGGGGATCTAGAAGTTACAACNNNNNNNNNCTGAGCGTGTGGCAAGGC*"}
+      ]
+    }]
+}
