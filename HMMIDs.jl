@@ -6,7 +6,7 @@ using SmithWaterman
 using States
 using Nucleotides
 using Observations
-using WrongStateModel
+using ProfileHMMModel
 
 function py_index_to_julia(py_index, length, bound=false)
   if py_index < 0
