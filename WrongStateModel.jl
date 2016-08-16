@@ -16,16 +16,16 @@ const L_PROBABILITY_OF_NORMAL_TRANSITION = log(1 - PROBABILITY_OF_DELETION - PRO
 const L_PROBABILITY_PER_EXTRA_BASE = log(0.05)
 
 type ObservableState
-  index::Int64
+  index::Integer
   value::DNASymbol
 end
 
 type StartingState
-  index::Int64
+  index::Integer
 end
 
 type RepeatingAnyState
-  index::Int64
+  index::Integer
 end
 
 State = Union{ObservableState, StartingState, RepeatingAnyState}
@@ -77,9 +77,9 @@ function string_to_state_model(string_sequence::AbstractString)
   return states
 end
 
-function sliding_window(max_range::Symbol, max_length::Int64, index::Int64)
+function sliding_window(max_range::Symbol, max_length::Integer, index::Integer)
   if isdefined(max_range)
-    offset = eval(max_range)::Int64
+    offset = eval(max_range)::Integer
     return max(1, index - offset):min(max_length, index + offset)
   else
     return 1:max_length

@@ -91,7 +91,7 @@ immutable FastqIterator
 end
 
 type Sequence
-  label::ASCIIString
+  label::AbstractString
   seq::Array{DNASymbol}
   quality::Array{Int8}
 end
@@ -106,7 +106,7 @@ Base.done(fi::Nucleotides.FastqIterator, state) = done(fi.line_iterator, state)
 
 function Base.next(fi::Nucleotides.FastqIterator, state)
   label = nothing
-  if typeof(state) <: ASCIIString
+  if typeof(state) <: AbstractString
     label = state
   end
   line = chomp(next(fi.line_iterator, nothing)[1])

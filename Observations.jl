@@ -6,7 +6,7 @@ export Observation, sequence_to_observations
 
 type Observation
   value::DNASymbol
-  prob::Float64
+  prob::AbstractFloat
 end
 
 function fastq_score_to_prob(score)
