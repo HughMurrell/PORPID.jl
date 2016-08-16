@@ -1,3 +1,6 @@
+module Nucleotides
+export DNASymbol, Sequence, prob, FastqIterator
+
 @enum DNANucleotide DNA_A=1 DNA_C=2 DNA_G=3 DNA_T=4
 @enum DNANucCombo DNA_R=1 DNA_Y=2 DNA_M=3 DNA_K=4 DNA_S=5 DNA_W=6 DNA_H=7 DNA_B=8 DNA_V=9 DNA_D=10 DNA_N=11
 
@@ -6,7 +9,7 @@ letter_to_nuc_combo = Dict([(repr(DNANucCombo(i))[5], DNANucCombo(i)) for i in 1
 
 DNASymbol = Union{DNANucleotide, DNANucCombo}
 
-function prob(expected::DNASymbol, prob_expected::Float64, observed::DNASymbol, prob_observed::Float64)
+function prob(expected::DNASymbol, prob_expected::AbstractFloat, observed::DNASymbol, prob_observed::AbstractFloat)
   norm_expected = prob_expected / length(constituents(expected))
   norm_not_expected = (1 - prob_expected) / (4 - length(constituents(expected)))
   norm_observed = prob_observed / length(constituents(observed))
@@ -19,11 +22,11 @@ function prob(expected::DNASymbol, prob_expected::Float64, observed::DNASymbol, 
   return total_prob
 end
 
-function prob(expected::DNASymbol, observed::DNASymbol, prob_observed::Float64)
+function prob(expected::DNASymbol, observed::DNASymbol, prob_observed::AbstractFloat)
   return prob(expected, 1.0, observed, prob_observed)
 end
 
-function prob(expected::DNASymbol, observed::DNANucleotide, prob_observed::Float64)
+function prob(expected::DNASymbol, observed::DNANucleotide, prob_observed::AbstractFloat)
   if observed in constituents(expected)
     l = length(constituents(expected))
     return prob_observed / l + ((1 - prob_observed) * (l - 1)) / (3 * l)
@@ -68,11 +71,11 @@ function Base.string(symbol::DNASymbol)
   return repr(symbol)[5]
 end
 
-function convert(DNASymbol, symbol::DNASymbol)
+function Base.convert(::Type{DNASymbol}, symbol::DNASymbol)
   return symbol
 end
 
-function convert(DNASymbol, char::Char)
+function Base.convert(::Type{DNASymbol}, char::Char)
   char = uppercase(char)
   if char in keys(letter_to_nucleotide)
     return letter_to_nucleotide[char]
@@ -97,11 +100,11 @@ function char_to_quality(char)
   return Int(char) - 33
 end
 
-FastqIterator(file_name::ASCIIString) = FastqIterator(eachline(open(file_name)))
-Base.start(fi::FastqIterator) = start(fi.line_iterator)
-Base.done(fi::FastqIterator, state) = done(fi.line_iterator, state)
+FastqIterator(file_name::AbstractString) = FastqIterator(eachline(open(file_name)))
+Base.start(fi::Nucleotides.FastqIterator) = start(fi.line_iterator)
+Base.done(fi::Nucleotides.FastqIterator, state) = done(fi.line_iterator, state)
 
-function Base.next(fi::FastqIterator, state)
+function Base.next(fi::Nucleotides.FastqIterator, state)
   label = nothing
   if typeof(state) <: ASCIIString
     label = state
@@ -126,4 +129,5 @@ function Base.next(fi::FastqIterator, state)
   end
 
   return Sequence(label, sequence, quality), nothing
+end
 end
