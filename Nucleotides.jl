@@ -9,7 +9,7 @@ letter_to_nuc_combo = Dict([(repr(DNANucCombo(i))[5], DNANucCombo(i)) for i in 1
 
 DNASymbol = Union{DNANucleotide, DNANucCombo}
 
-function prob(expected::DNASymbol, prob_expected::AbstractFloat, observed::DNASymbol, prob_observed::AbstractFloat)
+function prob(expected::DNASymbol, prob_expected::Float64, observed::DNASymbol, prob_observed::Float64)
   norm_expected = prob_expected / length(constituents(expected))
   norm_not_expected = (1 - prob_expected) / (4 - length(constituents(expected)))
   norm_observed = prob_observed / length(constituents(observed))
@@ -22,11 +22,11 @@ function prob(expected::DNASymbol, prob_expected::AbstractFloat, observed::DNASy
   return total_prob
 end
 
-function prob(expected::DNASymbol, observed::DNASymbol, prob_observed::AbstractFloat)
+function prob(expected::DNASymbol, observed::DNASymbol, prob_observed::Float64)
   return prob(expected, 1.0, observed, prob_observed)
 end
 
-function prob(expected::DNASymbol, observed::DNANucleotide, prob_observed::AbstractFloat)
+function prob(expected::DNASymbol, observed::DNANucleotide, prob_observed::Float64)
   if observed in constituents(expected)
     l = length(constituents(expected))
     return prob_observed / l + ((1 - prob_observed) * (l - 1)) / (3 * l)
