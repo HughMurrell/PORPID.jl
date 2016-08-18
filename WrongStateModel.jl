@@ -4,7 +4,7 @@ module WrongStateModel
 using Nucleotides
 using Observations
 
-export string_to_state_model, viterbi, ObservableState, StartingState, RepeatingAnyState, State
+export string_to_state_model, viterbi, ObservableState, StartingState, RepeatingAnyState, State, L_PROBABILITY_OF_INSERTION, L_PROBABILITY_OF_DELETION
 
 #const MAX_SHIFT = 30
 #const MAX_INDEL = 15
