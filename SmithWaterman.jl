@@ -19,10 +19,12 @@ function SmithWaterman(observations::Array{Observation,1}, states::Array{State,1
     else
       scores[r,1] = scores[r-1,1] + L_PROBABILITY_OF_DELETION
     end
+    ops[r,1] = OP_DEL
   end
   #Top row contains all insertions
   for c = 2:cols
     scores[1,c] = scores[1,c-1] + L_PROBABILITY_OF_INSERTION
+    ops[1,c] = OP_INS
   end
   #Fill in scores for the rest of the matrix
   for r = 2:rows
