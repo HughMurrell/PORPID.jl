@@ -7,7 +7,7 @@ using WrongStateModel
 
 @enum AlignOp OP_MATCH=1 OP_DEL=2 OP_INS=3
 
-function SmithWaterman(observations::Array{Observation,1}, states::Array{State,1})
+function SmithWaterman(observations::Array{Observation,1}, states::Array{State,1}, star_insertion_score::Float64=0)
   rows = size(states)[1]
   cols = size(observations)[1] + 1 #first column is for 'before first symbol' position
   scores = zeros(Float64, rows, cols)
@@ -31,8 +31,8 @@ function SmithWaterman(observations::Array{Observation,1}, states::Array{State,1
     for c = 2:cols
       currentstate = states[r]
       if typeof(currentstate) <: RepeatingAnyState
-        #RepeatingAnyState represents any number of free insertions or can be freely deleted
-        scores[r,c] = max(scores[r-1,c], scores[r,c-1])
+        #RepeatingAnyState represents any number of insertions at star_insertion_score or can be freely deleted
+        scores[r,c] = max(scores[r-1,c], scores[r,c-1] + star_insertion_score)
       else
         matchscore = scores[r-1,c-1] + log(prob(currentstate.value, observations[c-1].value, observations[c-1].prob))
         inscore = scores[r,c-1] + L_PROBABILITY_OF_INSERTION
@@ -69,7 +69,7 @@ function SmithWaterman(observations::Array{Observation,1}, states::Array{State,1
       r = r - 1
     end
   end
-  return (scores[rows,cols], tag, nothing)
+  return (scores[rows,cols], tag)
 end
 
 function printif(dict, key, string)
@@ -91,6 +91,15 @@ end
 
 function swprocess(json_file)
   params = JSON.parsefile(json_file)
+
+  # Options
+  star_insertion_cost::Float64 = 0
+  if (haskey(params, "options"))
+    options = params["options"]
+    if (haskey(options, "penalise_star") && options["penalise_star"])
+      star_insertion_cost = log(0.25)
+    end
+  end
 
   # Convert Patterns to StateSequences
   for section in params["sections"]
@@ -116,7 +125,7 @@ function swprocess(json_file)
         best_plex = "None"
         best_tag = "None"
         for plex in section["multiplexes"]
-          score, tag, hmmsequence = SmithWaterman(observations, plex["states"])
+          score, tag = SmithWaterman(observations, plex["states"], star_insertion_cost)
           printif(section, "print_all_scores", "$(plex["name"]) $(round(score, 2)) $(join(map(string, tag), ""))\n")
           if score > best_plex_score
             best_plex_score = score
