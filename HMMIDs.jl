@@ -1,7 +1,9 @@
+push!(LOAD_PATH, ".")
 module HMMIDs
 import JSON
-push!(LOAD_PATH, ".")
 
+using SmithWaterman
+using States
 using Nucleotides
 using Observations
 using WrongStateModel
@@ -23,13 +25,26 @@ function printif(dict, key, string)
   end
 end
 
+@enum ExtractionAlgorithm ALG_SMITH_WATERMAN=1 ALG_HMM=2
+
 function process(json_file)
   params = JSON.parsefile(json_file)
+
+  # Options
+  extraction_algorithm = ALG_SMITH_WATERMAN
+  if (haskey(params, "options"))
+    options = params["options"]
+    if(haskey(options, "algorithm"))
+      if (lowercase(options["algorithm"]) == "hmm")
+        extraction_algorithm = ALG_HMM
+      end
+    end
+  end
 
   # Convert Patterns to StateSequences
   for section in params["sections"]
     for plex in section["multiplexes"]
-      state_model = WrongStateModel.string_to_state_model(plex["reference"])
+      state_model = States.string_to_state_model(plex["reference"])
       plex["state_model"] = state_model
     end
   end
@@ -50,7 +65,11 @@ function process(json_file)
         best_plex = "None"
         best_tag = "None"
         for plex in section["multiplexes"]
-          score, tag, reference_path = viterbi(observations, plex["state_model"])
+          if (extraction_algorithm == ALG_HMM)
+            score, tag = WrongStateModel.extract_tag(observations, plex["state_model"])
+          else
+            score, tag = SmithWaterman.extract_tag(observations, plex["state_model"])
+          end
           printif(section, "print_all_scores", "$(plex["name"]) $(round(score, 2)) $(join(map(string, tag), ""))\n")
           if score > best_plex_score
             best_plex_score = score

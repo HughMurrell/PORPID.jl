@@ -4,16 +4,7 @@ module WrongStateModel
 using Nucleotides
 using Observations
 
-export string_to_state_model, viterbi, ObservableState, StartingState, RepeatingAnyState, State, L_PROBABILITY_OF_INSERTION, L_PROBABILITY_OF_DELETION
-
-#const MAX_SHIFT = 30
-#const MAX_INDEL = 15
-const PROBABILITY_OF_INSERTION = 0.01
-const PROBABILITY_OF_DELETION = 0.01
-const L_PROBABILITY_OF_INSERTION = log(PROBABILITY_OF_INSERTION)
-const L_PROBABILITY_OF_DELETION = log(PROBABILITY_OF_DELETION)
-const L_PROBABILITY_OF_NORMAL_TRANSITION = log(1 - PROBABILITY_OF_DELETION - PROBABILITY_OF_INSERTION)
-const L_PROBABILITY_PER_EXTRA_BASE = log(0.05)
+export extract_tag
 
 type ObservableState
   index::Int64
@@ -86,7 +77,7 @@ function sliding_window(max_range::Symbol, max_length::Int64, index::Int64)
   end
 end
 
-function viterbi(observations::Array{Observation,1}, states::Array{State,1})
+function extract_tag(observations::Array{Observation,1}, states::Array{State,1})
   previous_best_probabilities = Dict{Int64, Float64}(1 => 1.0)
   previous_tags = Dict{Int64, Array{DNASymbol,1}}()
   previous_path = Dict{Int64, Array{Int64,1}}()
