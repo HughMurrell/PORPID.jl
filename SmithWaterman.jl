@@ -74,7 +74,7 @@ function extract_tag(observations::Array{Observation,1}, states::Array{AbstractS
   c = cols
   while r > 1 || c > 1
     #Debugging print: path and operations
-    #println("r=$r\tc=$c\t$(ops[r,c])$(ops[r,c]!=OP_MATCH ? "\t\t" : "\t")Obs=$(c > 1 ? string(observations[c-1].value) : "0")\tState=$(typeof(states[r]) <: RepeatingAnyState ? "*" : (typeof(states[r]) <: StartingState ? "0" : string(states[r].value)))")
+    #println("r=$r\tc=$c\t$(ops[r,c])$(ops[r,c]!=OP_MATCH ? "\t\t" : "\t")Obs=$(c > 1 ? string(observations[c-1].value) : "0")\tState=$(typeof(states[r]) <: AbstractRepeatingAnyState ? "*" : (typeof(states[r]) <: AbstractStartingState ? "0" : string(states[r].value)))")
     if ops[r,c] == OP_MATCH
       if typeof(states[r]) <: AbstractBarcodeState
         insert!(tag, 1, observations[c-1].value)
@@ -85,8 +85,8 @@ function extract_tag(observations::Array{Observation,1}, states::Array{AbstractS
       #Include in the tag any insertions that are aligned to an N or aligned adjacent to an N
       #No need to check states[r-1] as long as matching is done before insertion, because any insertions to the right of a series of Ns will
       #  be matched to the Ns and the symbols aligned to the left of the Ns will be considered insertions instead (and included in the tag)
-      if ((typeof(states[r]) <: ObservableState && states[r].value == Nucleotides.DNA_N) ||
-        (r < rows && typeof(states[r+1]) <: ObservableState && states[r+1].value == Nucleotides.DNA_N))
+      if ((typeof(states[r]) <: AbstractBarcodeState
+        (r < rows && typeof(states[r+1]) <: AbstractBarcodeState)
         insert!(tag, 1, observations[c-1].value)
       end
       c = c - 1
