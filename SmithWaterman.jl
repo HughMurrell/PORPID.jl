@@ -6,6 +6,9 @@ using States
 export extract_tag
 
 const STAR_INSERTION_SCORE = 0
+const SCORE_EPSILON = 0.0000000001
+#SCORE_EPSILON is used to prevent accuracy limitations from inducing false inequalities
+#e.g. log(0.25) + log(0.01) + log(0.25) != log(0.25) + log(0.25) + log(0.01)
 
 @enum AlignOp OP_MATCH=1 OP_DEL=2 OP_INS=3
 
@@ -34,38 +37,58 @@ function extract_tag(observations::Array{Observation,1}, states::Array{State,1})
       currentstate = states[r]
       if typeof(currentstate) <: RepeatingAnyState
         #RepeatingAnyState represents any number of insertions at star_insertion_score or can be freely deleted
-        scores[r,c] = max(scores[r-1,c], scores[r,c-1] + STAR_INSERTION_SCORE)
+        inscore = scores[r,c-1] + STAR_INSERTION_SCORE
+        delscore = scores[r-1,c]
+        if delscore > inscore - SCORE_EPSILON
+          scores[r,c] = delscore
+          ops[r,c] = OP_DEL
+        else
+          scores[r,c] = inscore
+          ops[r,c] = OP_INS
+        end
       else
         matchscore = scores[r-1,c-1] + log(prob(currentstate.value, observations[c-1].value, observations[c-1].prob))
         inscore = scores[r,c-1] + L_PROBABILITY_OF_INSERTION
         delscore = scores[r-1,c] + L_PROBABILITY_OF_DELETION
         #The order of operations is significant in the case of multiple paths with the same score
         #In this case, a single path is chosen based on operation order
-        if (delscore >= matchscore && delscore >= inscore)
-          scores[r,c] = delscore
-          ops[r,c] = OP_DEL
-        elseif (inscore >= matchscore)
+        #Currently matching is done first (when backtracing) so that insertions in the tag section are aligned to N symbols
+        #If early insertion is preferred over early matching, such insertions might be aligned to known symbols in the template instead
+        if matchscore > delscore - SCORE_EPSILON && matchscore > inscore - SCORE_EPSILON
+          scores[r,c] = matchscore
+          ops[r,c] = OP_MATCH
+        elseif inscore > delscore - SCORE_EPSILON
           scores[r,c] = inscore
           ops[r,c] = OP_INS
         else
-          scores[r,c] = matchscore
-          ops[r,c] = OP_MATCH
+          scores[r,c] = delscore
+          ops[r,c] = OP_DEL
         end
       end
     end
   end
+
   #Construct tag from score and operation matrices
   tag = Array{DNASymbol, 1}()
   r = rows
   c = cols
-  while (r > 1 || c > 1)
-    if (ops[r,c] == OP_MATCH)
-      if (states[r].value == Nucleotides.DNA_N)
+  while r > 1 || c > 1
+    #Debugging print: path and operations
+    #println("r=$r\tc=$c\t$(ops[r,c])$(ops[r,c]!=OP_MATCH ? "\t" : "")\tObs=$(c > 1 ? string(observations[c-1].value) : "0")\tState=$(typeof(states[r]) <: RepeatingAnyState ? "*" : (typeof(states[r]) <: StartingState ? 0 : string(states[r].value)))")
+    if ops[r,c] == OP_MATCH
+      if typeof(states[r]) <: ObservableState && states[r].value == Nucleotides.DNA_N
         insert!(tag, 1, observations[c-1].value)
       end
       r = r - 1
       c = c - 1
-    elseif (ops[r,c] == OP_INS)
+    elseif ops[r,c] == OP_INS
+      #Include insertions that are aligned adjacent to an N in the tag
+      #No need to check states[r-1] as long as matching is done before insertion, because any insertions to the right of a series of Ns will
+      #  be matched to the Ns and the symbols aligned to the left of the Ns will be considered insertions instead (and included in the tag)
+      if ((typeof(states[r]) <: ObservableState && states[r].value == Nucleotides.DNA_N) ||
+        (r < rows && typeof(states[r+1]) <: ObservableState && states[r+1].value == Nucleotides.DNA_N))
+        insert!(tag, 1, observations[c-1].value)
+      end
       c = c - 1
     else
       r = r - 1
