@@ -6,7 +6,7 @@ using Observations
 
 export AbstractState, AbstractStartingState, StartingState
 export AbstractRepeatingAnyState, RepeatingAnyState, AbstractObservableState
-export ObservableStat, AbstractBarcodeState, BarcodeState
+export ObservableState, AbstractBarcodeState, BarcodeState
 export string_to_state_array
 
 abstract AbstractState
