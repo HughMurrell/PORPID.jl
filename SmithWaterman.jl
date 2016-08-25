@@ -6,7 +6,7 @@ using States
 export extract_tag
 
 const STAR_INSERTION_SCORE = 0
-const SCORE_EPSILON = 0.0000000001
+const SCORE_EPSILON = 1e-10
 #SCORE_EPSILON is used to prevent accuracy limitations from inducing false inequalities
 #e.g. log(0.25) + log(0.01) + log(0.25) != log(0.25) + log(0.25) + log(0.01)
 
