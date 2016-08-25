@@ -7,62 +7,29 @@ using States
 
 export extract_tag
 
-type IndexedObservableState
-  index::Int64
-  value::DNASymbol
-end
-
-type IndexedStartingState
-  index::Int64
-end
-
-type IndexedRepeatingAnyState
-  index::Int64
-end
-
-IndexedState = Union{IndexedObservableState, IndexedStartingState, IndexedRepeatingAnyState}
-
-function states_to_indexed_states(given_states::Array{State,1})
-  indexed_states = Array{IndexedState,1}()
-  i = 1
-  for given in given_states
-    if typeof(given) <: StartingState
-      new_state = IndexedStartingState(i)
-    elseif typeof(given) <: ObservableState
-      new_state = IndexedObservableState(i, given.value)
-    elseif typeof(given) <: RepeatingAnyState
-      new_state = IndexedRepeatingAnyState(i)
-    else
-      throw(DomainError())
-    end
-    push!(indexed_states, new_state)
-    i += 1
-  end
-  return indexed_states
-end
-
-function emition_prob(observation::Observation, state::IndexedState)
-  if typeof(state) <: IndexedStartingState
+function emition_prob(observation::Observation, state::AbstractState)
+  if typeof(state) <: AbstractStartingState
     return -Inf
-  elseif typeof(state) <: IndexedRepeatingAnyState
+  elseif typeof(state) <: AbstractRepeatingAnyState
     return log(0.25)
   else
     return log(prob(state.value, observation.value, observation.prob))
   end
 end
 
-function transition_prob(new_state::IndexedState, previous_state::IndexedState)
+function transition_prob(new_state::AbstractState, new_state_index::Int64,
+   previous_state::AbstractState, previous_state_index::Int64)
   # Using linear model
-  if typeof(new_state) <: IndexedStartingState
+  if typeof(new_state) <: AbstractStartingState
     return -Inf
-  elseif (typeof(new_state) <: IndexedRepeatingAnyState) && previous_state == new_state
+  elseif (typeof(new_state) <: AbstractRepeatingAnyState) && previous_state == new_state
     return L_PROBABILITY_OF_NORMAL_TRANSITION
-  elseif (typeof(new_state) <: IndexedRepeatingAnyState) && new_state.index < previous_state.index
+  elseif (typeof(new_state) <: AbstractRepeatingAnyState) && new_state_index < previous_state_index
     return -Inf # Cannot go back into a repeating state that you've left
-  elseif (typeof(previous_state) <: IndexedRepeatingAnyState) && new_state.index < previous_state.index
+  elseif (typeof(previous_state) <: AbstractRepeatingAnyState) && new_state_index < previous_state_index
     return -Inf # Cannot go backwards once you've entered a repeating state
   end
-  diff = new_state.index - previous_state.index
+  diff = new_state_index - previous_state_index
   if diff == 1
     return L_PROBABILITY_OF_NORMAL_TRANSITION
   elseif diff < 1
@@ -81,8 +48,7 @@ function sliding_window(max_range::Symbol, max_length::Int64, index::Int64)
   end
 end
 
-function extract_tag(observations::Array{Observation,1}, given_states::Array{State,1})
-  states = states_to_indexed_states(given_states)
+function extract_tag(observations::Array{Observation,1}, reference::Array{AbstractState,1})
 
   previous_best_probabilities = Dict{Int64, Float64}(1 => 1.0)
   previous_tags = Dict{Int64, Array{DNASymbol,1}}()
@@ -94,21 +60,22 @@ function extract_tag(observations::Array{Observation,1}, given_states::Array{Sta
     # Current Tags
     current_tags = Dict{Int64, Array{DNASymbol,1}}()
     current_path = Dict{Int64, Array{Int64,1}}()
-    for current_state_i in sliding_window(:MAX_SHIFT, length(states), obs_i)
+    for current_state_i in sliding_window(:MAX_SHIFT, length(reference), obs_i)
       best_previous_state_i = -1
       best_path_prob = -Inf
-      for previous_state_i in sliding_window(:MAX_INDEL, length(states), current_state_i)
+      for previous_state_i in sliding_window(:MAX_INDEL, length(reference), current_state_i)
         previous_state_prob = get(previous_best_probabilities, previous_state_i, -Inf)
-        path_prob = previous_state_prob + transition_prob(states[current_state_i], states[previous_state_i])
+        path_prob = previous_state_prob +
+          transition_prob(reference[current_state_i], current_state_i, reference[previous_state_i], previous_state_i)
         if path_prob > best_path_prob
           best_previous_state_i = previous_state_i
           best_path_prob = path_prob
         end
       end
-      prob = best_path_prob + emition_prob(observations[obs_i], states[current_state_i])
+      prob = best_path_prob + emition_prob(observations[obs_i], reference[current_state_i])
       current_best_probabilities[current_state_i] = prob
       current_tags[current_state_i] = copy(get(previous_tags, best_previous_state_i, Array{DNASymbol,1}()))
-      if (typeof(states[current_state_i]) <: IndexedObservableState) && states[current_state_i].value == Nucleotides.DNA_N
+      if (typeof(reference[current_state_i]) <: AbstractBarcodeState)
           push!(current_tags[current_state_i], observations[obs_i].value)
       end
       current_path[current_state_i] = copy(get(previous_path, best_previous_state_i, Array{Int64,1}()))

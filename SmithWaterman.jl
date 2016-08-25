@@ -12,14 +12,14 @@ const SCORE_EPSILON = 1e-10
 
 @enum AlignOp OP_MATCH=1 OP_DEL=2 OP_INS=3
 
-function extract_tag(observations::Array{Observation,1}, states::Array{State,1})
+function extract_tag(observations::Array{Observation,1}, states::Array{AbstractState,1})
   rows = length(states)
   cols = length(observations) + 1 #first column is for 'before first symbol' position
   scores = zeros(Float64, rows, cols)
   ops = Array{AlignOp}(rows, cols)
   #Left-most column contains all deletions
   for r = 2:rows
-    if typeof(states[r]) <: RepeatingAnyState
+    if typeof(states[r]) <: AbstractRepeatingAnyState
       scores[r,1] = scores[r-1,1] #Deletion of RepeatingAnyState is free
     else
       scores[r,1] = scores[r-1,1] + L_PROBABILITY_OF_DELETION
@@ -35,7 +35,7 @@ function extract_tag(observations::Array{Observation,1}, states::Array{State,1})
   for r = 2:rows
     for c = 2:cols
       currentstate = states[r]
-      if typeof(currentstate) <: RepeatingAnyState
+      if typeof(currentstate) <: AbstractRepeatingAnyState
         #RepeatingAnyState represents any number of insertions at star_insertion_score or can be freely deleted
         inscore = scores[r,c-1] + STAR_INSERTION_SCORE
         delscore = scores[r-1,c]
@@ -76,7 +76,7 @@ function extract_tag(observations::Array{Observation,1}, states::Array{State,1})
     #Debugging print: path and operations
     #println("r=$r\tc=$c\t$(ops[r,c])$(ops[r,c]!=OP_MATCH ? "\t\t" : "\t")Obs=$(c > 1 ? string(observations[c-1].value) : "0")\tState=$(typeof(states[r]) <: RepeatingAnyState ? "*" : (typeof(states[r]) <: StartingState ? "0" : string(states[r].value)))")
     if ops[r,c] == OP_MATCH
-      if typeof(states[r]) <: ObservableState && states[r].value == Nucleotides.DNA_N
+      if typeof(states[r]) <: AbstractBarcodeState
         insert!(tag, 1, observations[c-1].value)
       end
       r = r - 1
