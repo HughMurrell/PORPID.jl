@@ -10,8 +10,8 @@ const STAR_INSERTION_SCORE = 0
 @enum AlignOp OP_MATCH=1 OP_DEL=2 OP_INS=3
 
 function extract_tag(observations::Array{Observation,1}, states::Array{State,1})
-  rows = size(states)[1]
-  cols = size(observations)[1] + 1 #first column is for 'before first symbol' position
+  rows = length(states)
+  cols = length(observations) + 1 #first column is for 'before first symbol' position
   scores = zeros(Float64, rows, cols)
   ops = Array{AlignOp}(rows, cols)
   #Left-most column contains all deletions
@@ -44,7 +44,7 @@ function extract_tag(observations::Array{Observation,1}, states::Array{State,1})
         if (delscore >= matchscore && delscore >= inscore)
           scores[r,c] = delscore
           ops[r,c] = OP_DEL
-        elseif (inscore >= matchscore && inscore >= delscore)
+        elseif (inscore >= matchscore)
           scores[r,c] = inscore
           ops[r,c] = OP_INS
         else
