@@ -85,7 +85,7 @@ function extract_tag(observations::Array{Observation,1}, states::Array{AbstractS
       #Include in the tag any insertions that are aligned to an N or aligned adjacent to an N
       #No need to check states[r-1] as long as matching is done before insertion, because any insertions to the right of a series of Ns will
       #  be matched to the Ns and the symbols aligned to the left of the Ns will be considered insertions instead (and included in the tag)
-      if ((typeof(states[r]) <: AbstractBarcodeState
+      if ((typeof(states[r]) <: AbstractBarcodeState ||
         (r < rows && typeof(states[r+1]) <: AbstractBarcodeState)
         insert!(tag, 1, observations[c-1].value)
       end
