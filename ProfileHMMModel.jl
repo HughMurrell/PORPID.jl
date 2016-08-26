@@ -36,21 +36,21 @@ function get0(array::Array{Float64,1}, index::Int64)
   return getDefault(array, index, 0.0)
 end
 
-type TagTrace
+immutable TagTrace
   score::Float64
   tag::Array{DNASymbol,1}
 end
 
 TagTrace(score::Float64) = TagTrace(score, Array{DNASymbol,1}())
 
-function +(tt::TagTrace, float::Float64)
+function Base.(:+)(tt::TagTrace, float::Float64)
   TagTrace(tt.score + float, tt.tag)
 end
 
-function Base.push!(tt::TagTrace, symbol::DNASymbol)
+function Base.(:+)(tt::TagTrace, symbol::DNASymbol)
   array = copy(tt.tag)
   Base.push!(array, symbol)
-  tt.tag = array
+  TagTrace(tt.score, array)
 end
 
 Base.isless(tt1::TagTrace, tt2::TagTrace) = Base.isless(tt1.score, tt2.score)
@@ -84,18 +84,18 @@ function extract_tag(observations::Array{Observation,1}, expected::Array{Abstrac
   for i in 2:length(D)
     D[i] = D[i-1] + L_EXTEND_DELETION
   end
-  S[1] = TagTrace(L_NORMAL_TRANSITION + prob(expected[1].value, observations[1].value, observations[1].prob))
+  S[1] = TagTrace(L_NORMAL_TRANSITION + log(prob(expected[1].value, observations[1].value, observations[1].prob)))
   for i in 2:length(S)
     if typeof(expected[i]) <: AbstractRepeatingAnyState
       S[i] = D[i-1]
     else
-      S[i] = D[i-1] + L_END_DELETION + prob(expected[i].value, observations[1].value, observations[1].prob)
+      S[i] = D[i-1] + L_END_DELETION + log(prob(expected[i].value, observations[1].value, observations[1].prob))
     end
   end
-  I[1] = TagTrace(L_START_INSERTION + prob(Nucleotides.DNA_N, observations[1].value, observations[1].prob))
+  I[1] = TagTrace(L_START_INSERTION + log(prob(Nucleotides.DNA_N, observations[1].value, observations[1].prob)))
   for i in 1:length(S)
     if typeof(expected[i]) <: AbstractBarcodeState
-      push!(S[i], observations[1].value)
+      S[i] += observations[1].value
     end
   end
 
@@ -115,24 +115,24 @@ function extract_tag(observations::Array{Observation,1}, expected::Array{Abstrac
     for i in length(S):-1:2 # Backwards because we want to use the previous versions of s and i
       if typeof(expected[i]) <: AbstractRepeatingAnyState
         S[i] = max(S[i], S[i-1], D[i-1]) +
-          prob(Nucleotides.DNA_N, observation.value, observation.prob)
+          log(prob(Nucleotides.DNA_N, observation.value, observation.prob))
         # No Insertion
       elseif typeof(expected[i-1]) <: AbstractRepeatingAnyState
         S[i] = max(S[i-1], D[i-1]) +
-               prob(expected[i].value, observation.value, observation.prob)
+               log(prob(expected[i].value, observation.value, observation.prob))
         # No insertion
       else
         S[i] = max(S[i-1] + L_NORMAL_TRANSITION, I[i] + L_END_INSERTION, D[i-1] + L_END_DELETION) +
-          prob(expected[i].value, observation.value, observation.prob)
+          log(prob(expected[i].value, observation.value, observation.prob))
         I[i] = max(I[i] + L_EXTEND_INSERTION, S[i-1] + L_START_INSERTION) +
-          prob(Nucleotides.DNA_N, observation.value, observation.prob)
+          log(prob(Nucleotides.DNA_N, observation.value, observation.prob))
       end
     end
     S[1] = I[1] + L_END_INSERTION
     I[1] = I[1] + L_EXTEND_INSERTION
     for i in 1:length(S)
       if typeof(expected[i]) <: AbstractBarcodeState
-        push!(S[i], observation.value)
+        S[i] += observation.value
       end
     end
   end
