@@ -49,7 +49,7 @@ function constituents(combo::DNANucCombo)
   elseif combo == DNA_K
     return Set([DNA_G, DNA_T])
   elseif combo == DNA_S
-    return Set([DNA_C, DNA_T])
+    return Set([DNA_C, DNA_G])
   elseif combo == DNA_W
     return Set([DNA_A, DNA_T])
   elseif combo == DNA_H
@@ -65,6 +65,61 @@ function constituents(combo::DNANucCombo)
   else
     return Set([])
   end
+end
+
+function combine(nucleotides::Set{DNANucleotide})
+  if length(nucleotides) == 1
+    for nuc in nucleotides
+      return nuc
+    end
+  elseif length(nucleotides) == 2
+    if DNA_A in nucleotides
+      if DNA_C in nucleotides
+        return DNA_M #A|C
+      elseif DNA_G in nucleotides
+        return DNA_R #A|G
+      else
+        return DNA_W #A|T
+      end
+    elseif DNA_C in nucleotides
+      if DNA_G in nucleotides
+        return DNA_S #C|G
+      else
+        return DNA_Y #C|T
+      end
+    else
+      return DNA_K #G|T
+    end
+  elseif length(nucleotides) == 3
+    if !(DNA_A in nucleotides)
+      return DNA_B #C|G|T
+    elseif !(DNA_C in nucleotides)
+      return DNA_D #A|G|T
+    elseif !(DNA_G in nucleotides)
+      return DNA_H #A|C|T
+    elseif !(DNA_T in nucleotides)
+      return DNA_V #A|C|G
+    end
+  else
+    return DNA_N #A|C|G|T
+  end
+end
+
+function dna_complement(nucleotide::DNANucleotide)
+  if nucleotide == DNA_A
+    return DNA_T
+  elseif nucleotide == DNA_T
+    return DNA_A
+  elseif nucleotide == DNA_C
+    return DNA_G
+  elseif nucleotide == DNA_G
+    return DNA_C
+  end
+end
+
+function dna_complement(combo::DNANucCombo)
+  #Complement each of the constituent symbols
+  return combine(Set{DNANucleotide}(map(dna_complement, constituents(combo))))
 end
 
 function Base.string(symbol::DNASymbol)

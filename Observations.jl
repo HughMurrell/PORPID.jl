@@ -29,4 +29,13 @@ function sequence_to_observations(sequence, quality)
   end
   return observations
 end
+
+function reverse_complement(observations::Array{Observation,1})
+  rc = Array{Observation, 1}()
+  for i in length(observations):-1:1
+    push!(rc, Observation(Nucleotides.dna_complement(observations[i].value), observations[i].prob))
+  end
+  return rc
+end
+
 end
