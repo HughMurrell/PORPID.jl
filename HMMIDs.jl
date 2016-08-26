@@ -27,12 +27,17 @@ function printif(dict, key, string)
 end
 
 @enum ExtractionAlgorithm ALG_SMITH_WATERMAN=1 ALG_HMM=2 PROFILE_HMM=3
+extraction_functions = Dict(
+    ALG_SMITH_WATERMAN => SmithWaterman.extract_tag,
+    ALG_HMM => WrongStateModel.extract_tag,
+    PROFILE_HMM => ProfileHMMModel.extract_tag)
 
 function process(json_file)
   params = JSON.parsefile(json_file)
 
   # Options
   extraction_algorithm = ALG_SMITH_WATERMAN
+  do_reverse_complement = true
   if haskey(params, "options")
     options = params["options"]
     if haskey(options, "algorithm")
@@ -41,6 +46,9 @@ function process(json_file)
       elseif lowercase(options["algorithm"]) == "profile"
         extraction_algorithm = PROFILE_HMM
       end
+    end
+    if haskey(options, "do_reverse_complement")
+      do_reverse_complement = options["do_reverse_complement"]
     end
   end
 
@@ -68,13 +76,18 @@ function process(json_file)
         best_plex = "None"
         best_tag = "None"
         for plex in section["multiplexes"]
-          if extraction_algorithm == ALG_HMM
-            score, tag = WrongStateModel.extract_tag(observations, plex["reference_state_array"])
-          elseif extraction_algorithm == PROFILE_HMM
-            score, tag = ProfileHMMModel.extract_tag(observations, plex["reference_state_array"])
-          else
-            score, tag = SmithWaterman.extract_tag(observations, plex["reference_state_array"])
+          extract_tag_fn = extraction_functions[extraction_algorithm]
+          score, tag = extract_tag_fn(observations, plex["reference_state_array"])
+
+          if do_reverse_complement
+            rc_observations = Observations.reverse_complement(observations)
+            rc_score, rc_tag = extract_tag_fn(rc_observations, plex["reference_state_array"])
+            if rc_score > score
+              score = rc_score
+              tag = rc_tag
+            end
           end
+
           printif(section, "print_all_scores", "$(plex["name"]) $(round(score, 2)) $(join(map(string, tag), ""))\n")
           if score > best_plex_score
             best_plex_score = score
