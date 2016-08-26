@@ -26,20 +26,18 @@ function printif(dict, key, string)
   end
 end
 
-@enum ExtractionAlgorithm ALG_SMITH_WATERMAN=1 ALG_HMM=2 PROFILE_HMM=3
-
 function process(json_file)
   params = JSON.parsefile(json_file)
 
   # Options
-  extraction_algorithm = ALG_SMITH_WATERMAN
+  model = SmithWaterman
   if haskey(params, "options")
     options = params["options"]
     if haskey(options, "algorithm")
       if lowercase(options["algorithm"]) == "hmm"
-        extraction_algorithm = ALG_HMM
+        model = WrongStateModel
       elseif lowercase(options["algorithm"]) == "profile"
-        extraction_algorithm = PROFILE_HMM
+        model = ProfileHMMModel
       end
     end
   end
@@ -68,13 +66,7 @@ function process(json_file)
         best_plex = "None"
         best_tag = "None"
         for plex in section["multiplexes"]
-          if extraction_algorithm == ALG_HMM
-            score, tag = WrongStateModel.extract_tag(observations, plex["reference_state_array"])
-          elseif extraction_algorithm == PROFILE_HMM
-            score, tag = ProfileHMMModel.extract_tag(observations, plex["reference_state_array"])
-          else
-            score, tag = SmithWaterman.extract_tag(observations, plex["reference_state_array"])
-          end
+          score, tag = model.extract_tag(observations, plex["reference_state_array"])
           printif(section, "print_all_scores", "$(plex["name"]) $(round(score, 2)) $(join(map(string, tag), ""))\n")
           if score > best_plex_score
             best_plex_score = score
