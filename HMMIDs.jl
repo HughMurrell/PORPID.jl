@@ -6,6 +6,7 @@ using SmithWaterman
 using States
 using Nucleotides
 using Observations
+using ProfileHMMModel
 using WrongStateModel
 
 function py_index_to_julia(py_index, length, bound=false)
@@ -25,18 +26,20 @@ function printif(dict, key, string)
   end
 end
 
-@enum ExtractionAlgorithm ALG_SMITH_WATERMAN=1 ALG_HMM=2
+@enum ExtractionAlgorithm ALG_SMITH_WATERMAN=1 ALG_HMM=2 PROFILE_HMM=3
 
 function process(json_file)
   params = JSON.parsefile(json_file)
 
   # Options
   extraction_algorithm = ALG_SMITH_WATERMAN
-  if (haskey(params, "options"))
+  if haskey(params, "options")
     options = params["options"]
-    if(haskey(options, "algorithm"))
-      if (lowercase(options["algorithm"]) == "hmm")
+    if haskey(options, "algorithm")
+      if lowercase(options["algorithm"]) == "hmm"
         extraction_algorithm = ALG_HMM
+      elseif lowercase(options["algorithm"]) == "profile"
+        extraction_algorithm = PROFILE_HMM
       end
     end
   end
@@ -44,8 +47,8 @@ function process(json_file)
   # Convert Patterns to StateSequences
   for section in params["sections"]
     for plex in section["multiplexes"]
-      state_model = States.string_to_state_model(plex["reference"])
-      plex["state_model"] = state_model
+      reference_state_array = States.string_to_state_array(plex["reference"])
+      plex["reference_state_array"] = reference_state_array
     end
   end
 
@@ -65,10 +68,12 @@ function process(json_file)
         best_plex = "None"
         best_tag = "None"
         for plex in section["multiplexes"]
-          if (extraction_algorithm == ALG_HMM)
-            score, tag = WrongStateModel.extract_tag(observations, plex["state_model"])
+          if extraction_algorithm == ALG_HMM
+            score, tag = WrongStateModel.extract_tag(observations, plex["reference_state_array"])
+          elseif extraction_algorithm == PROFILE_HMM
+            score, tag = ProfileHMMModel.extract_tag(observations, plex["reference_state_array"])
           else
-            score, tag = SmithWaterman.extract_tag(observations, plex["state_model"])
+            score, tag = SmithWaterman.extract_tag(observations, plex["reference_state_array"])
           end
           printif(section, "print_all_scores", "$(plex["name"]) $(round(score, 2)) $(join(map(string, tag), ""))\n")
           if score > best_plex_score
