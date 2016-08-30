@@ -9,6 +9,31 @@ letter_to_nuc_combo = Dict([(repr(DNANucCombo(i))[5], DNANucCombo(i)) for i in 1
 
 DNASymbol = Union{DNANucleotide, DNANucCombo}
 
+const SYMBOL_CONSTITUENTS = (
+    (DNA_A, Set{DNANucleotide}([DNA_A])),
+    (DNA_C, Set{DNANucleotide}([DNA_C])),
+    (DNA_G, Set{DNANucleotide}([DNA_G])),
+    (DNA_T, Set{DNANucleotide}([DNA_T])),
+    (DNA_W, Set{DNANucleotide}([DNA_A, DNA_T])),
+    (DNA_S, Set{DNANucleotide}([DNA_C, DNA_G])),
+    (DNA_M, Set{DNANucleotide}([DNA_A, DNA_C])),
+    (DNA_K, Set{DNANucleotide}([DNA_G, DNA_T])),
+    (DNA_R, Set{DNANucleotide}([DNA_A, DNA_G])),
+    (DNA_Y, Set{DNANucleotide}([DNA_C, DNA_T])),
+    (DNA_B, Set{DNANucleotide}([DNA_C, DNA_G, DNA_T])),
+    (DNA_D, Set{DNANucleotide}([DNA_A, DNA_G, DNA_T])),
+    (DNA_H, Set{DNANucleotide}([DNA_A, DNA_C, DNA_T])),
+    (DNA_V, Set{DNANucleotide}([DNA_A, DNA_C, DNA_G])),
+    (DNA_N, Set{DNANucleotide}([DNA_A, DNA_C, DNA_G, DNA_T]))
+)
+
+symbol_to_nucleotides = Dict{DNASymbol, Set{DNANucleotide}}()
+nucleotides_to_symbol = Dict{Set{DNANucleotide}, DNASymbol}()
+for pair in SYMBOL_CONSTITUENTS
+  symbol_to_nucleotides[pair[1]] = pair[2]
+  nucleotides_to_symbol[pair[2]] = pair[1]
+end
+
 function prob(expected::DNASymbol, prob_expected::Float64, observed::DNASymbol, prob_observed::Float64)
   norm_expected = prob_expected / length(constituents(expected))
   norm_not_expected = (1 - prob_expected) / (4 - length(constituents(expected)))
@@ -35,36 +60,30 @@ function prob(expected::DNASymbol, observed::DNANucleotide, prob_observed::Float
   end
 end
 
-function constituents(nucleotide::DNANucleotide)
-  return [nucleotide]
+
+function constituents(dna_symbol::DNASymbol)
+  return symbol_to_nucleotides[dna_symbol]
 end
 
-function constituents(combo::DNANucCombo)
-  if combo == DNA_R
-    return Set([DNA_A, DNA_G])
-  elseif combo == DNA_Y
-    return Set([DNA_C, DNA_T])
-  elseif combo == DNA_M
-    return Set([DNA_A, DNA_C])
-  elseif combo == DNA_K
-    return Set([DNA_G, DNA_T])
-  elseif combo == DNA_S
-    return Set([DNA_C, DNA_T])
-  elseif combo == DNA_W
-    return Set([DNA_A, DNA_T])
-  elseif combo == DNA_H
-    return Set([DNA_A, DNA_C, DNA_T])
-  elseif combo == DNA_B
-    return Set([DNA_C, DNA_G, DNA_T])
-  elseif combo == DNA_V
-    return Set([DNA_A, DNA_C, DNA_G])
-  elseif combo == DNA_D
-    return Set([DNA_A, DNA_G, DNA_T])
-  elseif combo == DNA_N
-    return Set([DNA_A, DNA_C, DNA_G, DNA_T])
-  else
-    return Set([])
+function combine(nucleotides::Set{DNANucleotide})
+  return nucleotides_to_symbol[nucleotides]
+end
+
+function dna_complement(nucleotide::DNANucleotide)
+  if nucleotide == DNA_A
+    return DNA_T
+  elseif nucleotide == DNA_T
+    return DNA_A
+  elseif nucleotide == DNA_C
+    return DNA_G
+  elseif nucleotide == DNA_G
+    return DNA_C
   end
+end
+
+function dna_complement(combo::DNANucCombo)
+  #Complement each of the constituent symbols
+  return combine(Set{DNANucleotide}(map(dna_complement, constituents(combo))))
 end
 
 function Base.string(symbol::DNASymbol)

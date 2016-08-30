@@ -31,6 +31,7 @@ function process(json_file)
 
   # Options
   model = SmithWaterman
+  do_reverse_complement = true
   if haskey(params, "options")
     options = params["options"]
     if haskey(options, "algorithm")
@@ -39,6 +40,9 @@ function process(json_file)
       elseif lowercase(options["algorithm"]) == "profile"
         model = ProfileHMMModel
       end
+    end
+    if haskey(options, "do_reverse_complement")
+      do_reverse_complement = options["do_reverse_complement"]
     end
   end
 
@@ -67,6 +71,16 @@ function process(json_file)
         best_tag = "None"
         for plex in section["multiplexes"]
           score, tag = model.extract_tag(observations, plex["reference_state_array"])
+
+          if do_reverse_complement
+            rc_observations = Observations.reverse_complement(observations)
+            rc_score, rc_tag = model.extract_tag(rc_observations, plex["reference_state_array"])
+            if rc_score > score
+              score = rc_score
+              tag = rc_tag
+            end
+          end
+
           printif(section, "print_all_scores", "$(plex["name"]) $(round(score, 2)) $(join(map(string, tag), ""))\n")
           if score > best_plex_score
             best_plex_score = score
