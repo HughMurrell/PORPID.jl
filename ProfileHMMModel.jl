@@ -96,6 +96,9 @@ function extract_tag(observations::Array{Observation,1}, expected::Array{Abstrac
   for i in 1:length(S)
     if typeof(expected[i]) <: AbstractBarcodeState
       S[i] += observations[1].value
+      I[i] += observations[1].value
+    elseif typeof(expected[i-1]) <: AbstractBarcodeState
+      I[i] += observations[1].value
     end
   end
 
@@ -133,6 +136,9 @@ function extract_tag(observations::Array{Observation,1}, expected::Array{Abstrac
     for i in 1:length(S)
       if typeof(expected[i]) <: AbstractBarcodeState
         S[i] += observation.value
+        I[i] += observation.value
+      elseif typeof(expected[i-1]) <: AbstractBarcodeState
+        I[i] += observation.value
       end
     end
   end
