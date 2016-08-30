@@ -7,7 +7,6 @@ using States
 using Nucleotides
 using Observations
 using ProfileHMMModel
-using WrongStateModel
 
 function py_index_to_julia(py_index, length, bound=false)
   if py_index < 0
@@ -35,9 +34,7 @@ function process(json_file)
   if haskey(params, "options")
     options = params["options"]
     if haskey(options, "algorithm")
-      if lowercase(options["algorithm"]) == "hmm"
-        model = WrongStateModel
-      elseif lowercase(options["algorithm"]) == "profile"
+      if lowercase(options["algorithm"]) == "profile"
         model = ProfileHMMModel
       end
     end
