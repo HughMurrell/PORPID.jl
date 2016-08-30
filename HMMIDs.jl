@@ -98,6 +98,9 @@ function process(json_file)
       end
 
       str_tag = join(map(string, best_tag), "")
+      if length(str_tag) == 0
+        str_tag = "NO_TAG"
+      end
       if output_to_file
         str_seq = join(map(string, sequence.seq), "")
         str_quality = join(map(quality_to_char, sequence.quality), "")
