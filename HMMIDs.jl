@@ -47,52 +47,47 @@ function process(json_file)
   end
 
   # Convert Patterns to StateSequences
-  for section in params["sections"]
-    for plex in section["multiplexes"]
-      reference_state_array = States.string_to_state_array(plex["reference"])
-      plex["reference_state_array"] = reference_state_array
-    end
+  for plex in params["multiplexes"]
+    reference_state_array = States.string_to_state_array(plex["reference"])
+    plex["reference_state_array"] = reference_state_array
   end
 
   for file_name in params["files"]
     printif(params, "print_filename", "$(file_name)\n")
     for sequence in FastqIterator(file_name)
       printif(params, "print_sequence", "  $(sequence.label)\n")
-      for section in params["sections"]
-        printif(section, "print_section", "    $(section["name"])\n")
-        start_i = py_index_to_julia(get(section, "start_inclusive", 0), length(sequence.seq), true)
-        end_i = py_index_to_julia(get(section, "end_inclusive", -1), length(sequence.seq), true)
-        printif(section, "print_subsequence", "$(sequence.seq[start_i:end_i])\n")
-        observations = sequence_to_observations(sequence.seq[start_i:end_i], sequence.quality[start_i:end_i])
+      start_i = py_index_to_julia(get(params, "start_inclusive", 0), length(sequence.seq), true)
+      end_i = py_index_to_julia(get(params, "end_inclusive", -1), length(sequence.seq), true)
+      printif(params, "print_subsequence", "$(sequence.seq[start_i:end_i])\n")
+      observations = sequence_to_observations(sequence.seq[start_i:end_i], sequence.quality[start_i:end_i])
 
-        # Find best matching plex (group in a multiplexed sample)
-        best_plex_score = -Inf
-        best_plex = "None"
-        best_tag = "None"
-        for plex in section["multiplexes"]
-          score, tag = model.extract_tag(observations, plex["reference_state_array"])
+      # Find best matching plex (group in a multiplexed sample)
+      best_plex_score = -Inf
+      best_plex = "None"
+      best_tag = "None"
+      for plex in params["multiplexes"]
+        score, tag = model.extract_tag(observations, plex["reference_state_array"])
 
-          if do_reverse_complement
-            rc_observations = Observations.reverse_complement(observations)
-            rc_score, rc_tag = model.extract_tag(rc_observations, plex["reference_state_array"])
-            if rc_score > score
-              score = rc_score
-              tag = rc_tag
-            end
-          end
-
-          printif(section, "print_all_scores", "$(plex["name"]) $(round(score, 2)) $(join(map(string, tag), ""))\n")
-          if score > best_plex_score
-            best_plex_score = score
-            best_plex = plex["name"]
-            best_tag = tag
+        if do_reverse_complement
+          rc_observations = Observations.reverse_complement(observations)
+          rc_score, rc_tag = model.extract_tag(rc_observations, plex["reference_state_array"])
+          if rc_score > score
+            score = rc_score
+            tag = rc_tag
           end
         end
-        printif(section, "print_plex", "\t$(best_plex)")
-        printif(section, "print_tag", "\t$(join(map(string, best_tag), ""))")
-        printif(section, "print_score", "\t$(round(best_plex_score, 2))")
-        println()
+
+        printif(params, "print_all_scores", "$(plex["name"]) $(round(score, 2)) $(join(map(string, tag), ""))\n")
+        if score > best_plex_score
+          best_plex_score = score
+          best_plex = plex["name"]
+          best_tag = tag
+        end
       end
+      printif(params, "print_plex", "\t$(best_plex)")
+      printif(params, "print_tag", "\t$(join(map(string, best_tag), ""))")
+      printif(params, "print_score", "\t$(round(best_plex_score, 2))")
+      println()
     end
   end
 end
