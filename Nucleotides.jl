@@ -1,5 +1,5 @@
 module Nucleotides
-export DNASymbol, Sequence, prob, FastqIterator
+export DNASymbol, Sequence, prob, FastqIterator, quality_to_char
 
 @enum DNANucleotide DNA_A=1 DNA_C=2 DNA_G=3 DNA_T=4
 @enum DNANucCombo DNA_R=1 DNA_Y=2 DNA_M=3 DNA_K=4 DNA_S=5 DNA_W=6 DNA_H=7 DNA_B=8 DNA_V=9 DNA_D=10 DNA_N=11
@@ -117,6 +117,10 @@ end
 
 function char_to_quality(char)
   return Int(char) - 33
+end
+
+function quality_to_char(quality)
+  return Char(round(quality) + 33)
 end
 
 FastqIterator(file_name::AbstractString) = FastqIterator(eachline(open(file_name)))
