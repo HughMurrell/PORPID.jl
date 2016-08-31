@@ -65,6 +65,14 @@ function process(json_file)
 
   for file_name in params["files"]
     printif(params, "print_filename", "$(file_name)\n")
+
+    #plex name => (tag/cluster => sequences with scores)
+    #i.e. folder => (file name => file contents)
+    plex_to_cluster_map = Dict{ASCIIString, Dict{ASCIIString, Array{Tuple{Nucleotides.Sequence, Float64}, 1}}}()
+    for plex in params["multiplexes"]
+      plex_to_cluster_map[plex["name"]] = Dict{ASCIIString, Array{Tuple{Nucleotides.Sequence, Float64}, 1}}()
+    end
+
     for sequence in FastqIterator(file_name)
       printif(params, "print_sequence", "  $(sequence.label)\n")
       start_i = py_index_to_julia(get(params, "start_inclusive", 0), length(sequence.seq), true)
@@ -97,43 +105,52 @@ function process(json_file)
         end
       end
 
-      str_tag = join(map(string, best_tag), "")
-      if length(str_tag) == 0
-        str_tag = "NO_TAG"
+      str_tag = length(best_tag) > 0 ? join(map(string, best_tag), "") : "NO_TAG"
+      cluster_name = best_plex_score > best_plex["tag_length"] * log(0.25) + SCORE_THRESHOLD ? str_tag : "REJECTS"
+      cluster_to_sequences = plex_to_cluster_map[best_plex_name]
+      sequence_and_score = (sequence, best_plex_score)
+      if !haskey(cluster_to_sequences, cluster_name)
+        cluster_to_sequences[cluster_name] = Array{Tuple{Nucleotides.Sequence, Float64}, 1}()
       end
-      if output_to_file
-        str_seq = join(map(string, sequence.seq), "")
-        str_quality = join(map(quality_to_char, sequence.quality), "")
-        folder_name = splitext(basename(file_name))[1]
-        
-        if !isdir("$OUTPUT_FOLDER")
-          mkdir("$OUTPUT_FOLDER")
-        end
-        if !isdir("$OUTPUT_FOLDER/$folder_name")
-          mkdir("$OUTPUT_FOLDER/$folder_name")
-        end
-        if !isdir("$OUTPUT_FOLDER/$folder_name/$best_plex_name")
-          mkdir("$OUTPUT_FOLDER/$folder_name/$best_plex_name")
-        end
+      push!(cluster_to_sequences[cluster_name], sequence_and_score)
 
-        if best_plex_score > best_plex["tag_length"] * log(0.25) + SCORE_THRESHOLD
-          open("$OUTPUT_FOLDER/$folder_name/$best_plex_name/$str_tag.fastq", "a") do f
-            write(f, "@$(sequence.label)($(round(best_plex_score, 2)))\n$str_seq\n+$(sequence.label)\n$str_quality\n")
-          end
-        else
-          open("$OUTPUT_FOLDER/$folder_name/$best_plex_name/REJECTS.fastq", "a") do f
-            write(f, "@$(sequence.label)($(round(best_plex_score, 2)))\n$str_seq\n+$(sequence.label)\n$str_quality\n")
-          end
-        end
-      end
-
-      printif(params, "print_plex", "\t$(best_plex_name)")
+      printif(params, "print_plex", "\t$best_plex_name")
       printif(params, "print_tag", "\t$str_tag")
       printif(params, "print_score", "\t$(round(best_plex_score, 2))")
       println()
-    end
-  end
-end
+    end #for each sequence
+
+    if output_to_file
+      if !isdir("$OUTPUT_FOLDER")
+        mkdir("$OUTPUT_FOLDER")
+      end
+      folder_name = splitext(basename(file_name))[1]
+      if !isdir("$OUTPUT_FOLDER/$folder_name")
+        mkdir("$OUTPUT_FOLDER/$folder_name")
+      end
+      println("Writing output to $(abspath("$OUTPUT_FOLDER/$folder_name")) ...")
+
+      for plex_name in keys(plex_to_cluster_map)
+        if !isdir("$OUTPUT_FOLDER/$folder_name/$plex_name")
+          mkdir("$OUTPUT_FOLDER/$folder_name/$plex_name")
+        end
+
+        cluster_to_sequences = plex_to_cluster_map[plex_name]
+        for cluster in keys(cluster_to_sequences)
+          open("$OUTPUT_FOLDER/$folder_name/$plex_name/$cluster.fastq", "w") do f
+            sequence_and_score_array = cluster_to_sequences[cluster]
+            for (sequence, score) in sequence_and_score_array
+              str_sequence = join(map(string, sequence.seq), "")
+              str_quality = join(map(quality_to_char, sequence.quality), "")
+              write(f, "@$(sequence.label)($(round(score, 2)))\n$str_sequence\n+$(sequence.label)\n$str_quality\n")
+            end #for each sequence
+          end #open file
+        end #for each cluster (tag)
+      end #for each plex
+    end #output to files
+
+  end #for each file to process
+end #process function
 
 process(ARGS[1])
 end
