@@ -142,7 +142,7 @@ function process(json_file)
             for (sequence, score) in sequence_and_score_array
               str_sequence = join(map(string, sequence.seq), "")
               str_quality = join(map(quality_to_char, sequence.quality), "")
-              write(f, "@$(sequence.label)($(round(score, 2)))\n$str_sequence\n+$(sequence.label)\n$str_quality\n")
+              write(f, "@$(sequence.label)($(round(score, 2)))\n$str_sequence\n+\n$str_quality\n")
             end #for each sequence
           end #open file
         end #for each cluster (tag)
