@@ -2,7 +2,7 @@ push!(LOAD_PATH, ".")
 
 module Observations
 using Nucleotides
-export Observation, sequence_to_observations, prob_to_fastq_score
+export Observation, sequence_to_observations
 export PROBABILITY_OF_INSERTION, PROBABILITY_OF_DELETION, L_PROBABILITY_OF_INSERTION, L_PROBABILITY_OF_DELETION
 export L_PROBABILITY_PER_EXTRA_BASE, L_PROBABILITY_OF_NORMAL_TRANSITION
 
