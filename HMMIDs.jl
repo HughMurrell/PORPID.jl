@@ -8,7 +8,7 @@ using Nucleotides
 using Observations
 using ProfileHMMModel
 
-const SCORE_THRESHOLD = log(0.01) * 2 - 1e^-10
+const DEFAULT_MAX_ERRORS = 2
 const OUTPUT_FOLDER = "output"
 
 function py_index_to_julia(py_index, length, bound=false)
@@ -50,6 +50,11 @@ function process(json_file)
     end
   end
 
+  max_allowed_errors = DEFAULT_MAX_ERRORS
+  if haskey(params, "max_allowed_errors")
+    max_allowed_errors = params["max_allowed_errors"]
+  end
+
   # Convert Patterns to StateSequences
   for plex in params["multiplexes"]
     reference_state_array = States.string_to_state_array(plex["reference"])
@@ -85,14 +90,16 @@ function process(json_file)
       best_plex = Union{}
       best_plex_name = "None"
       best_tag = "None"
+      best_errors = Inf
       for plex in params["multiplexes"]
-        score, tag = model.extract_tag(observations, plex["reference_state_array"])
+        score, tag, errors = model.extract_tag(observations, plex["reference_state_array"])
         if do_reverse_complement
           rc_observations = Observations.reverse_complement(observations)
-          rc_score, rc_tag = model.extract_tag(rc_observations, plex["reference_state_array"])
+          rc_score, rc_tag, rc_errors = model.extract_tag(rc_observations, plex["reference_state_array"])
           if rc_score > score
             score = rc_score
             tag = rc_tag
+            errors = rc_errors
           end
         end
 
@@ -102,11 +109,12 @@ function process(json_file)
           best_plex = plex
           best_plex_name = plex["name"]
           best_tag = tag
+          best_errors = errors
         end
       end
 
       str_tag = length(best_tag) > 0 ? join(map(string, best_tag), "") : "NO_TAG"
-      cluster_name = best_plex_score > best_plex["tag_length"] * log(0.25) + SCORE_THRESHOLD ? str_tag : "REJECTS"
+      cluster_name = best_errors <= max_allowed_errors ? str_tag : "REJECTS"
       cluster_to_sequences = plex_to_cluster_map[best_plex_name]
       sequence_and_score = (sequence, best_plex_score)
       if !haskey(cluster_to_sequences, cluster_name)
@@ -117,6 +125,7 @@ function process(json_file)
       printif(params, "print_plex", "\t$best_plex_name")
       printif(params, "print_tag", "\t$str_tag")
       printif(params, "print_score", "\t$(round(best_plex_score, 2))")
+      printif(params, "print_error_count", "\t$best_errors")
       println()
     end #for each sequence
 
