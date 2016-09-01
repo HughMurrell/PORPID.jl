@@ -13,13 +13,18 @@ const OUTPUT_FOLDER = "output"
 
 function py_index_to_julia(py_index, length, bound=false)
   if py_index < 0
-    py_index += length
+    py_index += length + 1
   end
   if bound
     return min(length, max(1, py_index))
   else
     return py_index + 1
   end
+end
+
+#start_i, end_i -> -end_i, -start_i
+function tail_indices(start_index, end_index, length)
+  return (py_index_to_julia(-end_index, length, true), py_index_to_julia(-start_index, length, true))
 end
 
 function printif(dict, key, string)
@@ -82,8 +87,16 @@ function process(json_file)
       printif(params, "print_sequence", "  $(sequence.label)\n")
       start_i = py_index_to_julia(get(params, "start_inclusive", 0), length(sequence.seq), true)
       end_i = py_index_to_julia(get(params, "end_inclusive", -1), length(sequence.seq), true)
-      printif(params, "print_subsequence", "$(sequence.seq[start_i:end_i])\n")
+      printif(params, "print_subsequence", "$(join(map(string, sequence.seq[start_i:end_i]), ""))\n")
       observations = sequence_to_observations(sequence.seq[start_i:end_i], sequence.quality[start_i:end_i])
+      
+      rc_observations = Union{}
+      if do_reverse_complement
+        tail_start_i, tail_end_i = tail_indices(start_i, end_i, length(sequence.seq))
+        printif(params, "print_subsequence", "$(join(map(string, sequence.seq[tail_start_i:tail_end_i]), ""))\n")
+        tail_observations = sequence_to_observations(sequence.seq[tail_start_i:tail_end_i], sequence.quality[tail_start_i:tail_end_i])
+        rc_observations = Observations.reverse_complement(tail_observations)
+      end
 
       # Find best matching plex (group in a multiplexed sample)
       best_plex_score = -Inf
@@ -94,7 +107,6 @@ function process(json_file)
       for plex in params["multiplexes"]
         score, tag, errors = model.extract_tag(observations, plex["reference_state_array"])
         if do_reverse_complement
-          rc_observations = Observations.reverse_complement(observations)
           rc_score, rc_tag, rc_errors = model.extract_tag(rc_observations, plex["reference_state_array"])
           if rc_score > score
             score = rc_score
