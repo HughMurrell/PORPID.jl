@@ -123,12 +123,34 @@ def comparative_likelihood(input_file, line_order=["template", "likelihood"]):
         #plt.savefig(winner)
         plt.show()
         plt.cla()
-
+        
+def error_cutoffs(input_file, line_order=["errors"]):
+    num_bins = 40
+    if "errors" not in line_order:
+        print("Error cutoff needs an error count")
+        return
+    templates = defaultdict(list)
+    for line in input_file:
+        parts = line.strip().split()
+        if len(parts) != len(line_order): continue
+        errors = int(parts[line_order.index("errors")])
+        templates["All"].append(errors)
+        if "template" in line_order:
+            template = parts[line_order.index("template")]
+            templates[template].append(errors)
+    for template, errors in sorted(templates.items()):
+        n, bins, patches = plt.hist(errors, num_bins)
+        plt.xlabel('Errors')
+        plt.ylabel('Frequency')
+        plt.title(template)
+        plt.savefig(template)
+        #plt.show()
+        plt.cla()
 
 parser = argparse.ArgumentParser(description="Get info on PrimerID results")
-parser.add_argument('command', type=str, choices=["tag_dist", "likelihoods", "comparative"], default="tag_dist")
+parser.add_argument('command', type=str, choices=["tag_dist", "likelihoods", "comparative", "errors"], default="tag_dist")
 parser.add_argument('input', type=argparse.FileType('r'), help="the location of primer id results file to visualise")
-parser.add_argument('-f', '--format', metavar='keyword', action='append', choices=["template", "id", "likelihood"], help='The format of the lines')
+parser.add_argument('-f', '--format', metavar='keyword', action='append', choices=["template", "id", "likelihood", "errors"], help='The format of the lines')
 parser.add_argument('-t', '--threshold', type=float, help='Likelihood threshold below which lines are ignored')
 args = parser.parse_args()
 
@@ -147,3 +169,8 @@ elif args.command == "comparative":
         comparative_likelihood(args.input, args.format)
     else:
         comparative_likelihood(args.input)
+elif args.command == "errors":
+    if args.format is not None:
+        error_cutoffs(args.input, args.format)
+    else:
+        error_cutoffs(args.input)
