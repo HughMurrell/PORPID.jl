@@ -13,10 +13,10 @@ const OUTPUT_FOLDER = "output"
 
 function py_index_to_julia(py_index, length, bound=false)
   if py_index < 0
-    py_index += length + 1
+    py_index += length
   end
   if bound
-    return min(length, max(1, py_index))
+    return min(length, max(1, py_index + 1))
   else
     return py_index + 1
   end
@@ -89,7 +89,7 @@ function process(json_file)
       end_i = py_index_to_julia(get(params, "end_inclusive", -1), length(sequence.seq), true)
       printif(params, "print_subsequence", "$(join(map(string, sequence.seq[start_i:end_i]), ""))\n")
       observations = sequence_to_observations(sequence.seq[start_i:end_i], sequence.quality[start_i:end_i])
-      
+
       rc_observations = Union{}
       if do_reverse_complement
         tail_start_i, tail_end_i = tail_indices(start_i, end_i, length(sequence.seq))
