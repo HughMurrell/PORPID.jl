@@ -70,14 +70,22 @@ function extract_tag(observations::Array{Observation,1}, states::Array{AbstractS
 
   #Construct tag from score and operation matrices
   tag = Array{DNASymbol, 1}()
+  errors = 0
   r = rows
   c = cols
   while r > 1 || c > 1
     #Debugging print: path and operations
-    #println("r=$r\tc=$c\t$(ops[r,c])$(ops[r,c]!=OP_MATCH ? "\t\t" : "\t")Obs=$(c > 1 ? string(observations[c-1].value) : "0")\tState=$(typeof(states[r]) <: AbstractRepeatingAnyState ? "*" : (typeof(states[r]) <: AbstractStartingState ? "0" : string(states[r].value)))")
+    #print("r=$r\tc=$c\t$(ops[r,c])$(ops[r,c]!=OP_MATCH ? "\t\t" : "\t")Obs=$(c > 1 ? string(observations[c-1].value) : "0")")
+    #print("\tState=$(typeof(states[r]) <: AbstractRepeatingAnyState ? "*" : (typeof(states[r]) <: AbstractStartingState ? "0" : string(states[r].value)))")
+    #print("\t\tScore=$(round(scores[r,c], 2))\n")
     if ops[r,c] == OP_MATCH
       if typeof(states[r]) <: AbstractBarcodeState
         insert!(tag, 1, observations[c-1].value)
+      end
+      if typeof(states[r]) <: AbstractObservableState
+        if !(observations[c-1].value in Nucleotides.constituents(states[r].value))
+          errors = errors + 1
+        end
       end
       r = r - 1
       c = c - 1
@@ -89,11 +97,17 @@ function extract_tag(observations::Array{Observation,1}, states::Array{AbstractS
           (r < rows && typeof(states[r+1]) <: AbstractBarcodeState)
         insert!(tag, 1, observations[c-1].value)
       end
+      if !(typeof(states[r]) <: AbstractRepeatingAnyState)
+        errors = errors + 1
+      end
       c = c - 1
-    else
+    else #OP_DEL
+      if !(typeof(states[r]) <: AbstractRepeatingAnyState)
+        errors = errors + 1
+      end
       r = r - 1
     end
   end
-  return (scores[rows,cols], tag)
+  return (scores[rows,cols], tag, errors)
 end
 end

@@ -8,7 +8,7 @@ using Nucleotides
 using Observations
 using ProfileHMMModel
 
-const SCORE_THRESHOLD = log(0.01) * 2 - 1e^-10
+const DEFAULT_MAX_ERRORS = 2
 const OUTPUT_FOLDER = "output"
 
 function py_index_to_julia(py_index, length, bound=false)
@@ -16,10 +16,15 @@ function py_index_to_julia(py_index, length, bound=false)
     py_index += length
   end
   if bound
-    return min(length, max(1, py_index))
+    return min(length, max(1, py_index + 1))
   else
     return py_index + 1
   end
+end
+
+#start_i, end_i -> -end_i, -start_i
+function tail_indices(start_index, end_index, length)
+  return (py_index_to_julia(-end_index, length, true), py_index_to_julia(-start_index, length, true))
 end
 
 function printif(dict, key, string)
@@ -50,6 +55,11 @@ function process(json_file)
     end
   end
 
+  max_allowed_errors = DEFAULT_MAX_ERRORS
+  if haskey(params, "max_allowed_errors")
+    max_allowed_errors = params["max_allowed_errors"]
+  end
+
   # Convert Patterns to StateSequences
   for plex in params["multiplexes"]
     reference_state_array = States.string_to_state_array(plex["reference"])
@@ -77,22 +87,31 @@ function process(json_file)
       printif(params, "print_sequence", "  $(sequence.label)\n")
       start_i = py_index_to_julia(get(params, "start_inclusive", 0), length(sequence.seq), true)
       end_i = py_index_to_julia(get(params, "end_inclusive", -1), length(sequence.seq), true)
-      printif(params, "print_subsequence", "$(sequence.seq[start_i:end_i])\n")
+      printif(params, "print_subsequence", "$(join(map(string, sequence.seq[start_i:end_i]), ""))\n")
       observations = sequence_to_observations(sequence.seq[start_i:end_i], sequence.quality[start_i:end_i])
+
+      rc_observations = Union{}
+      if do_reverse_complement
+        tail_start_i, tail_end_i = tail_indices(start_i, end_i, length(sequence.seq))
+        printif(params, "print_subsequence", "$(join(map(string, sequence.seq[tail_start_i:tail_end_i]), ""))\n")
+        tail_observations = sequence_to_observations(sequence.seq[tail_start_i:tail_end_i], sequence.quality[tail_start_i:tail_end_i])
+        rc_observations = Observations.reverse_complement(tail_observations)
+      end
 
       # Find best matching plex (group in a multiplexed sample)
       best_plex_score = -Inf
       best_plex = Union{}
       best_plex_name = "None"
       best_tag = "None"
+      best_errors = Inf
       for plex in params["multiplexes"]
-        score, tag = model.extract_tag(observations, plex["reference_state_array"])
+        score, tag, errors = model.extract_tag(observations, plex["reference_state_array"])
         if do_reverse_complement
-          rc_observations = Observations.reverse_complement(observations)
-          rc_score, rc_tag = model.extract_tag(rc_observations, plex["reference_state_array"])
+          rc_score, rc_tag, rc_errors = model.extract_tag(rc_observations, plex["reference_state_array"])
           if rc_score > score
             score = rc_score
             tag = rc_tag
+            errors = rc_errors
           end
         end
 
@@ -102,11 +121,12 @@ function process(json_file)
           best_plex = plex
           best_plex_name = plex["name"]
           best_tag = tag
+          best_errors = errors
         end
       end
 
       str_tag = length(best_tag) > 0 ? join(map(string, best_tag), "") : "NO_TAG"
-      cluster_name = best_plex_score > best_plex["tag_length"] * log(0.25) + SCORE_THRESHOLD ? str_tag : "REJECTS"
+      cluster_name = best_errors <= max_allowed_errors ? str_tag : "REJECTS"
       cluster_to_sequences = plex_to_cluster_map[best_plex_name]
       sequence_and_score = (sequence, best_plex_score)
       if !haskey(cluster_to_sequences, cluster_name)
@@ -117,6 +137,7 @@ function process(json_file)
       printif(params, "print_plex", "\t$best_plex_name")
       printif(params, "print_tag", "\t$str_tag")
       printif(params, "print_score", "\t$(round(best_plex_score, 2))")
+      printif(params, "print_error_count", "\t$best_errors")
       println()
     end #for each sequence
 
