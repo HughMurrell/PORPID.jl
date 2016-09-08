@@ -40,6 +40,7 @@ function process(json_file)
   model = SmithWaterman
   do_reverse_complement = true
   output_to_file = true
+  print_rejects = true
   if haskey(params, "options")
     options = params["options"]
     if haskey(options, "algorithm")
@@ -52,6 +53,9 @@ function process(json_file)
     end
     if haskey(options, "output_to_file")
       output_to_file = options["output_to_file"]
+    end
+    if (haskey(options, "print_rejects"))
+      print_rejects = options["print_rejects"]
     end
   end
 
@@ -134,11 +138,13 @@ function process(json_file)
       end
       push!(cluster_to_sequences[cluster_name], sequence_and_score)
 
-      printif(params, "print_plex", "\t$best_plex_name")
-      printif(params, "print_tag", "\t$str_tag")
-      printif(params, "print_score", "\t$(round(best_plex_score, 2))")
-      printif(params, "print_error_count", "\t$best_errors")
-      println()
+      if (best_errors <= max_allowed_errors || print_rejects)
+        printif(params, "print_plex", "\t$best_plex_name")
+        printif(params, "print_tag", "\t$str_tag")
+        printif(params, "print_score", "\t$(round(best_plex_score, 2))")
+        printif(params, "print_error_count", "\t$best_errors")
+        println()
+      end
     end #for each sequence
 
     if output_to_file
