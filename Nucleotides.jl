@@ -1,5 +1,5 @@
 module Nucleotides
-export DNASymbol, Sequence, prob, FastqIterator, quality_to_char
+export DNASymbol, Sequence, prob, FastqIterator, quality_to_char, reverse_complement
 
 @enum DNANucleotide DNA_A=1 DNA_C=2 DNA_G=3 DNA_T=4
 @enum DNANucCombo DNA_R=1 DNA_Y=2 DNA_M=3 DNA_K=4 DNA_S=5 DNA_W=6 DNA_H=7 DNA_B=8 DNA_V=9 DNA_D=10 DNA_N=11
@@ -60,7 +60,6 @@ function prob(expected::DNASymbol, observed::DNANucleotide, prob_observed::Float
   end
 end
 
-
 function constituents(dna_symbol::DNASymbol)
   return symbol_to_nucleotides[dna_symbol]
 end
@@ -113,6 +112,18 @@ type Sequence
   label::ASCIIString
   seq::Array{DNASymbol}
   quality::Array{Int8}
+end
+
+function reverse_complement(sequence::Sequence)
+  r_label = "r_$(sequence.label)"
+  len = length(sequence.seq)
+  rc_seq = Array{DNASymbol}(len)
+  r_qualityArray{Int8}(len)
+  for i in 1:len
+    rc_seq[i] = Nucleotides.dna_complement(sequence.seq[len + 1 - i])
+    r_quality[i] = sequence.quality[len + 1 - i]
+  end
+  return Sequence(r_label, rc_seq, r_quality)
 end
 
 function char_to_quality(char)
