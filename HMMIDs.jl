@@ -108,11 +108,14 @@ function process(json_file)
       best_plex_name = "None"
       best_tag = "None"
       best_errors = Inf
+      is_best_reversed = false
       for plex in params["multiplexes"]
         score, tag, errors = model.extract_tag(observations, plex["reference_state_array"])
+        reverse = false
         if do_reverse_complement
           rc_score, rc_tag, rc_errors = model.extract_tag(rc_observations, plex["reference_state_array"])
           if rc_score > score
+            reverse = true
             score = rc_score
             tag = rc_tag
             errors = rc_errors
@@ -126,13 +129,14 @@ function process(json_file)
           best_plex_name = plex["name"]
           best_tag = tag
           best_errors = errors
+          is_best_reversed = reverse
         end
       end
 
       str_tag = length(best_tag) > 0 ? join(map(string, best_tag), "") : "NO_TAG"
       cluster_name = best_errors <= max_allowed_errors ? str_tag : "REJECTS"
       cluster_to_sequences = plex_to_cluster_map[best_plex_name]
-      sequence_and_score = (sequence, best_plex_score)
+      sequence_and_score = (is_best_reversed ? reverse_complement(sequence) : sequence, best_plex_score)
       if !haskey(cluster_to_sequences, cluster_name)
         cluster_to_sequences[cluster_name] = Array{Tuple{Nucleotides.Sequence, Float64}, 1}()
       end
