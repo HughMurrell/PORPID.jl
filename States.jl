@@ -19,7 +19,10 @@ type StartingState <: AbstractStartingState
 end
 
 type RepeatingAnyState <: AbstractRepeatingAnyState
+  value::DNASymbol
 end
+
+RepeatingAnyState() = RepeatingAnyState(Nucleotides.DNA_N)
 
 type ObservableState <: AbstractObservableState
   value::DNASymbol
