@@ -1,6 +1,8 @@
 push!(LOAD_PATH, ".")
 module Resolving
 
+using SparseICMapLDA
+
 const REJECT_TAG = "REJECTS"
 const ERROR_RATE = 0.005
 const DELETION_RATIO = 0.4
@@ -10,20 +12,40 @@ const MUTATION_RATIO = 0.2
 function process(path)
   path = normpath(path)
   counts = tag_counts(path)
+
   likelihoods = all_likelihood_distributions(counts)
-  for k in keys(likelihoods)
-    println(k)
-    for n in likelihoods[k]
-      println(n)
-    end
-    println("-------------")
-  end
 
   tag_to_index, index_to_tag = tag_index_mapping(Set(keys(counts)))
-  println(index_to_tag)
+
+  indexed_counts = index_counts(counts, tag_to_index)
 
   sparse_probabilities = likelihoods_to_matrix(likelihoods, tag_to_index)
-  println(sparse_probabilities)
+
+  posterior = SparseICMapLDA.LDA(sparse_probabilities, indexed_counts)
+
+  n = size(posterior, 1)
+  for r in 1:n
+    maxval = -1
+    maxindex = 0
+    for c in 1:n
+      if posterior[r,c] > maxval
+        maxval = posterior[r,c]
+        maxindex = c
+      end
+    end
+    if (maxval < 0.99)
+      println("$(index_to_tag[r]) ($(counts[index_to_tag[r]])) -> $(index_to_tag[maxindex]) ($(posterior[r,maxindex]))")
+    end
+  end
+end
+
+function index_counts(counts, tag_to_index)
+  tags = keys(counts)
+  ic = zeros(Int32, length(tags), 1)
+  for t in tags
+    ic[tag_to_index[t], 1] = counts[t]
+  end
+  return ic
 end
 
 function likelihoods_to_matrix(likelihoods, tag_to_index)
@@ -178,5 +200,5 @@ function insert_at(str, i, c)
   end
 end
 
-process(ARGS[1])
+@time process(ARGS[1])
 end
