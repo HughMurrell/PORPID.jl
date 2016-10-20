@@ -11,18 +11,24 @@ const MUTATION_RATIO = 0.2
 
 function process(path)
   path = normpath(path)
-  counts = tag_counts(path)
+  println("Reading tag files...")
+  @time counts = tag_counts(path)
 
-  likelihoods = all_likelihood_distributions(counts)
+  println("Generating likelihood distributions...")
+  @time likelihoods = all_likelihood_distributions(counts)
 
-  tag_to_index, index_to_tag = tag_index_mapping(Set(keys(counts)))
+  println("Generating index mapping...")
+  @time tag_to_index, index_to_tag = tag_index_mapping(Set(keys(counts)))
 
   indexed_counts = index_counts(counts, tag_to_index)
 
-  sparse_probabilities = likelihoods_to_matrix(likelihoods, tag_to_index)
+  println("Converting tag mapping to sparse matrix...")
+  @time sparse_probabilities = likelihoods_to_matrix(likelihoods, tag_to_index)
 
-  posterior = SparseICMapLDA.LDA(sparse_probabilities, indexed_counts)
+  println("Iterating...")
+  @time posterior = SparseICMapLDA.LDA(sparse_probabilities, indexed_counts)
 
+  println("tag,count,best_tag,best_score")
   n = size(posterior, 1)
   for r in 1:n
     maxval = -1
@@ -33,9 +39,10 @@ function process(path)
         maxindex = c
       end
     end
-    if (maxval < 0.99)
-      println("$(index_to_tag[r]) ($(counts[index_to_tag[r]])) -> $(index_to_tag[maxindex]) ($(posterior[r,maxindex]))")
-    end
+    # println("$(index_to_tag[r])\t$(round(posterior[r,maxindex], 4))")
+    # if (maxval < 0.99)
+      println("$(index_to_tag[r]),$(counts[index_to_tag[r]]),$(index_to_tag[maxindex]),$(round(posterior[r,maxindex], 4))")
+    # end
   end
 end
 
@@ -49,9 +56,9 @@ function index_counts(counts, tag_to_index)
 end
 
 function likelihoods_to_matrix(likelihoods, tag_to_index)
-  row_tag_indices = Array{Int64, 1}()
-  observed_tag_indices = Array{Int64, 1}()
-  probabilities = Array{Float64, 1}()
+  row_tag_indices = Array{Int32, 1}()
+  observed_tag_indices = Array{Int32, 1}()
+  probabilities = Array{Float32, 1}()
   all_tags = keys(likelihoods)
   for row_tag in all_tags
     for obs_tag in keys(likelihoods[row_tag])
@@ -71,8 +78,8 @@ end
 
 function tag_index_mapping(tags)
   i = 0
-  tag_to_index = Dict{ASCIIString, Int64}()
-  index_to_tag = Dict{Int64, ASCIIString}()
+  tag_to_index = Dict{ASCIIString, Int32}()
+  index_to_tag = Dict{Int32, ASCIIString}()
   for t in tags
     i += 1
     tag_to_index[t] = i
@@ -82,18 +89,24 @@ function tag_index_mapping(tags)
 end
 
 function tag_counts(path)
-  counts = Dict{ASCIIString, Int64}()
+  counts = Dict{ASCIIString, Int32}()
   for f in readdir(path)
-    tag, extension = splitext(f)
-    if extension == ".fastq" && tag != REJECT_TAG
-      lines = 0
-      open("$path$f") do tagfile
-        lines = countlines(tagfile)
+    fname, extension = splitext(f)
+    if extension == ".fastq" && fname != REJECT_TAG
+      sp = split(fname, '_')
+      if length(sp) == 2
+        tag, count = sp
+        counts[tag] = parse(Int32, count)
+      else
+        lines = 0
+        open("$path$f") do tagfile
+          lines = countlines(tagfile)
+        end
+        if (lines % 4 != 0)
+          println("Warning! $f appears to have incorrect format: expected file to contain 4 lines per sequence, and to end on a new line.")
+        end
+        counts[fname] = round(lines / 4)
       end
-      if (lines % 4 != 0)
-        println("Warning! $f appears to have incorrect format: expected file to contain 4 lines per sequence, and to end on a new line.")
-      end
-      counts[tag] = round(lines / 4)
     end
   end
   return counts
@@ -101,7 +114,7 @@ end
 
 function all_likelihood_distributions(counts)
   obs_tags = Set(keys(counts))
-  likelihoods = Dict{ASCIIString, Dict{ASCIIString, Float64}}()
+  likelihoods = Dict{ASCIIString, Dict{ASCIIString, Float32}}()
   for tag in obs_tags
     likelihoods[tag] = tag_likelihood_distribution(tag, obs_tags)
   end
@@ -109,7 +122,7 @@ function all_likelihood_distributions(counts)
 end
 
 function tag_likelihood_distribution(tag, obs_tags)
-  likelihood = Dict{ASCIIString, Float64}()
+  likelihood = Dict{ASCIIString, Float32}()
   for obs in obs_tags
     likelihood[obs] = 0
   end
@@ -134,6 +147,14 @@ function tag_likelihood_distribution(tag, obs_tags)
   likelihood[tag] = (1 - ERROR_RATE) ^ length(tag)
   return likelihood
 end
+
+# function error_neighbours(tag, depth)
+#   return error_neighbourhood(tag, depth, 1)
+# end
+#
+# function error_neighbourhood(tag, depth, n)
+#   neighbours = Array{ASCIIString}
+# end
 
 #The three neighbour functions below can have duplicate tags in the returned lists
 #This is used to accumulate probabilities when there are multiple error paths between two tags
