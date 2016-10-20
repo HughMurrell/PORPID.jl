@@ -7,8 +7,8 @@ module SparseICMapLDA
     rows = size(cl_matrix, 1)
     cols = size(cl_matrix, 2)
     #theta must be a 1-by-x matrix to make element-wise multiplication work correctly
-    theta = ones(1, cols) / cols
-    phi = spzeros(rows, cols)
+    theta = ones(Float32, 1, cols) / cols
+    phi = spzeros(Float32, rows, cols)
     #counts must be a <rows>-by-1 matrix for the same reason
     if size(counts, 1) == 0
       counts = ones(Int32, rows, 1)
