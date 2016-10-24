@@ -147,6 +147,7 @@ function process(json_file)
         printif(params, "print_tag", "\t$str_tag")
         printif(params, "print_score", "\t$(round(best_plex_score, 2))")
         printif(params, "print_error_count", "\t$best_errors")
+        printif(params, "print_is_reverse", "\t$(is_best_reversed ? "Reverse" : "Normal")")
         println()
       end
     end #for each sequence
