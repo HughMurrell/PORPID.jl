@@ -118,7 +118,7 @@ function reverse_complement(sequence::Sequence)
   r_label = "r_$(sequence.label)"
   len = length(sequence.seq)
   rc_seq = Array{DNASymbol}(len)
-  r_qualityArray{Int8}(len)
+  r_quality = Array{Int8}(len)
   for i in 1:len
     rc_seq[i] = Nucleotides.dna_complement(sequence.seq[len + 1 - i])
     r_quality[i] = sequence.quality[len + 1 - i]
