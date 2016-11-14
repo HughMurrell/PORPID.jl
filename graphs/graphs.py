@@ -13,7 +13,10 @@ except ImportError:
     raise
 import argparse
 
-def tag_dist(input_file, line_order=["id"], threshold=None):
+def log_tag_dist(input_file, line_order=["id"], threshold=None):
+    tag_dist(input_file, line_order, threshold, loglog=True)
+
+def tag_dist(input_file, line_order=["id"], threshold=None, loglog=False):
     if "id" not in line_order:
         print("Tag distribution needs id's")
         return
@@ -30,23 +33,39 @@ def tag_dist(input_file, line_order=["id"], threshold=None):
         barcode = parts[line_order.index("id")]
         tags[barcode] += 1
     max_count = 0
+    max_count_tag = None
     count_dist = defaultdict(lambda: 0)
-    for count in tags.values():
-        max_count = max(max_count, count)
-        count_dist[count] = count_dist[count] + 1
+    for tag, count in tags.items():
+        if count > max_count:
+            max_count = count
+            max_count_tag = tag
+        count_dist[count] += 1
     plt.figure(figsize=(30, 5), dpi=300)
+    print("Most common tag: " + str(max_count_tag) + " appears " + str(max_count) +" times")
     if max_count <= 1000:
-        count_counts = [count_dist[i] for i in range(1, max_count + 1)]
-        bars = plt.bar(range(max_count), count_counts, width=1.0, linewidth=0, log=True)
+        count_counts = [np.log2(count_dist[i]) for i in range(1, max_count + 1)]
+        bars = plt.bar(range(np.log2(max_count)), count_counts, width=1.0, linewidth=0, log=True)
         plt.ylim(0.1)
         xtick_spacing = max(1, int(round(max_count / 250.0) * 5))
-        plt.xticks([xtick_spacing/2.0 + x for x in range(0, max_count, xtick_spacing)], range(0, max_count, xtick_spacing), rotation='vertical')
+        if loglog:
+            plt.xticks([xtick_spacing/2.0 + x for x in range(0, max_count, xtick_spacing)], [r'$2^{{{0}}}$'.format(x) for x in range(0, max_count, xtick_spacing)], rotation='vertical')
+        else:
+            plt.xticks([xtick_spacing/2.0 + x for x in range(0, max_count, xtick_spacing)], range(0, max_count, xtick_spacing), rotation='vertical')
     else:
         num_bins = 250
         array = list(tags.values())
+        xtick_spacing = max(1, int(round(max_count / 250.0) * 5))
+        if loglog:
+            max_count = int(np.log2(max_count))
+            array = np.array(np.log2(array))
         n, bins, patches = plt.hist(array, num_bins, log=True)
         plt.ylim(0.1)
-    plt.xlabel('Number of copies in bin')
+        if loglog:
+            plt.xticks([xtick_spacing/2.0 + x for x in range(0, max_count, xtick_spacing)], [r'$2^{{{0}}}$'.format(x) for x in range(0, max_count, xtick_spacing)], rotation='vertical')
+    if loglog:
+        plt.xlabel('Floor(log2(number of copies in bin))')
+    else:
+        plt.xlabel('Number of copies in bin')
     plt.ylabel('Unique ID\'s with bin size')
     plt.savefig('bin_sizes')
     #plt.show()
@@ -148,15 +167,24 @@ def error_cutoffs(input_file, line_order=["errors"]):
         plt.cla()
 
 parser = argparse.ArgumentParser(description="Get info on PrimerID results")
-parser.add_argument('command', type=str, choices=["tag_dist", "likelihoods", "comparative", "errors"], default="tag_dist")
+parser.add_argument('command', type=str, choices=["log_tag_dist", "tag_dist", "likelihoods", "comparative", "errors"], default="tag_dist")
 parser.add_argument('input', type=argparse.FileType('r'), help="the location of primer id results file to visualise")
 parser.add_argument('-f', '--format', metavar='keyword', action='append', choices=["template", "id", "likelihood", "errors"], help='The format of the lines')
 parser.add_argument('-t', '--threshold', type=float, help='Likelihood threshold below which lines are ignored')
 args = parser.parse_args()
 
+if args.command == "log_tag_dist":
+    if args.format is not None and args.threshold is not None:
+        log_tag_dist(args.input, args.format, args.threshold)
+    elif args.format is not None:
+        log_tag_dist(args.input, args.format)
+    else:
+        log_tag_dist(args.input)
 if args.command == "tag_dist":
     if args.format is not None and args.threshold is not None:
         tag_dist(args.input, args.format, args.threshold)
+    elif args.format is not None:
+        tag_dist(args.input, args.format)
     else:
         tag_dist(args.input)
 elif args.command == "likelihoods":
