@@ -23,6 +23,7 @@ module SparseICMapLDA
         theta[1,c] = sum(phi[:,c] .* counts) + CONCENTRATION
       end
       theta = norm(theta)
+      println(STDERR, i)
     end
 
     return phi

@@ -11,21 +11,21 @@ const MUTATION_RATIO = 0.2
 
 function process(path)
   path = normpath(path)
-  println("Reading tag files...")
+  println(STDERR, "Reading tag files...")
   @time counts = tag_counts(path)
 
-  println("Generating likelihood distributions...")
+  println(STDERR, "Generating likelihood distributions...")
   @time likelihoods = all_likelihood_distributions(counts)
 
-  println("Generating index mapping...")
+  println(STDERR, "Generating index mapping...")
   @time tag_to_index, index_to_tag = tag_index_mapping(Set(keys(counts)))
 
   indexed_counts = index_counts(counts, tag_to_index)
 
-  println("Converting tag mapping to sparse matrix...")
+  println(STDERR, "Converting tag mapping to sparse matrix...")
   @time sparse_probabilities = likelihoods_to_matrix(likelihoods, tag_to_index)
 
-  println("Iterating...")
+  println(STDERR, "Iterating...")
   @time posterior = SparseICMapLDA.LDA(sparse_probabilities, indexed_counts)
 
   println("tag,count,best_tag,best_score")
@@ -39,10 +39,10 @@ function process(path)
         maxindex = c
       end
     end
-    # println("$(index_to_tag[r])\t$(round(posterior[r,maxindex], 4))")
-    # if (maxval < 0.99)
-      println("$(index_to_tag[r]),$(counts[index_to_tag[r]]),$(index_to_tag[maxindex]),$(round(posterior[r,maxindex], 4))")
-    # end
+    #println("$(index_to_tag[r])\t$(round(posterior[r,maxindex], 4))")
+    #if (maxval < 0.99)
+    println("$(index_to_tag[r]),$(counts[index_to_tag[r]]),$(index_to_tag[maxindex]),$(round(posterior[r,maxindex], 4))")
+    #end
   end
 end
 
@@ -103,7 +103,7 @@ function tag_counts(path)
           lines = countlines(tagfile)
         end
         if (lines % 4 != 0)
-          println("Warning! $f appears to have incorrect format: expected file to contain 4 lines per sequence, and to end on a new line.")
+          println(STDERR, "Warning! $f appears to have incorrect format: expected file to contain 4 lines per sequence, and to end on a new line.")
         end
         counts[fname] = round(lines / 4)
       end
