@@ -1,7 +1,7 @@
 push!(LOAD_PATH, ".")
 module Resolving
 
-using SparseICMapLDA
+using CustomLDA
 
 const REJECT_TAG = "REJECTS"
 const ERROR_RATE = 0.005
@@ -15,47 +15,59 @@ function process(path)
   @time counts = tag_counts(path)
 
   println(STDERR, "Generating likelihood distributions...")
-  @time likelihoods = all_likelihood_distributions(counts)
+  @time probabilities_dictionary = prob_observed_tags_given_reals(counts)
 
   println(STDERR, "Generating index mapping...")
   @time tag_to_index, index_to_tag = tag_index_mapping(Set(keys(counts)))
 
   indexed_counts = index_counts(counts, tag_to_index)
 
-  println(STDERR, "Converting tag mapping to sparse matrix...")
-  @time sparse_probabilities = likelihoods_to_matrix(likelihoods, tag_to_index)
+  println(STDERR, "Converting tag mapping to row array...")
+  @time probabilities_array = probabilities_to_row_array(probabilities_dictionary, tag_to_index)
 
-  println(STDERR, "Iterating...")
-  @time posterior = SparseICMapLDA.LDA(sparse_probabilities, indexed_counts)
+  println(STDERR, "Iterating..."  )
+  @time most_likely_real_for_each_obs = CustomLDA.LDA(probabilities_array, indexed_counts)
 
   println("tag,count,best_tag,best_score")
-  n = size(posterior, 1)
-  for r in 1:n
-    maxval = -1
-    maxindex = 0
-    for c in 1:n
-      if posterior[r,c] > maxval
-        maxval = posterior[r,c]
-        maxindex = c
-      end
-    end
+  tag_count = length(most_likely_real_for_each_obs)
+  for observed_index in 1:tag_count
+    real_index, prob = most_likely_real_for_each_obs[observed_index]
+    observed_tag = index_to_tag[observed_index]
+    real_tag = index_to_tag[real_index]
     #println("$(index_to_tag[r])\t$(round(posterior[r,maxindex], 4))")
     #if (maxval < 0.99)
-    println("$(index_to_tag[r]),$(counts[index_to_tag[r]]),$(index_to_tag[maxindex]),$(round(posterior[r,maxindex], 4))")
+    println("$(observed_tag),$(counts[observed_tag]),$(real_tag),$(round(prob, 4))")
     #end
   end
 end
 
 function index_counts(counts, tag_to_index)
   tags = keys(counts)
-  ic = zeros(Int32, length(tags), 1)
-  for t in tags
-    ic[tag_to_index[t], 1] = counts[t]
+  indexed_counts = Array{Int32}(length(tags))
+  for tag in tags
+    indexed_counts[tag_to_index[tag]] = counts[tag]
   end
-  return ic
+  return indexed_counts
 end
 
-function likelihoods_to_matrix(likelihoods, tag_to_index)
+function probabilities_to_row_array(probabilities, tag_to_index)
+  all_tags = keys(probabilities)
+  cl = Array{Array{Tuple{Int32, Float64}}}(length(all_tags))
+  for observation in all_tags
+    observation_index = tag_to_index[observation]
+    cl[observation_index] = Array{Tuple{Int32, Float64}}(0)
+    for possible_real_tag in keys(probabilities[observation])
+      prob_obs_given_real = probabilities[observation][possible_real_tag]
+      if (prob_obs_given_real != 0)
+        possible_real_tag_index = tag_to_index[possible_real_tag]
+        push!(cl[observation_index], (possible_real_tag_index, prob_obs_given_real))
+      end
+    end
+  end
+  return cl
+end
+
+function likelihoods_to_sparse_matrix(likelihoods, tag_to_index)
   row_tag_indices = Array{Int32, 1}()
   observed_tag_indices = Array{Int32, 1}()
   probabilities = Array{Float32, 1}()
@@ -112,40 +124,41 @@ function tag_counts(path)
   return counts
 end
 
-function all_likelihood_distributions(counts)
-  obs_tags = Set(keys(counts))
-  likelihoods = Dict{ASCIIString, Dict{ASCIIString, Float32}}()
-  for tag in obs_tags
-    likelihoods[tag] = tag_likelihood_distribution(tag, obs_tags)
+function prob_observed_tags_given_reals(counts)
+  observed_tags = Set(keys(counts))
+  possible_real_tags = observed_tags
+  prob_observed_tags_given_reals = Dict{ASCIIString, Dict{ASCIIString, Float32}}()
+  for observed_tag in observed_tags
+    prob_observed_tags_given_reals[observed_tag] = prob_observed_tag_given_reals(observed_tag, possible_real_tags)
   end
-  return likelihoods
+  return prob_observed_tags_given_reals
 end
 
-function tag_likelihood_distribution(tag, obs_tags)
-  likelihood = Dict{ASCIIString, Float32}()
-  for obs in obs_tags
-    likelihood[obs] = 0
+function prob_observed_tag_given_reals(observed_tag, possible_real_tags)
+  prob_given_reals = Dict{ASCIIString, Float32}()
+  for possible_real_tag in possible_real_tags
+    prob_given_reals[possible_real_tag] = 0
   end
-  ins_nbrs = insertion_neighbours(tag)
+  ins_nbrs = insertion_neighbours(observed_tag)
   for t in ins_nbrs
-    if t in obs_tags
-      likelihood[t] += ERROR_RATE * INSERTION_RATIO * (1/4)
+    if t in possible_real_tags
+      prob_given_reals[t] += ERROR_RATE * INSERTION_RATIO * (1/4)
     end
   end
-  del_nbrs = deletion_neighbours(tag)
+  del_nbrs = deletion_neighbours(observed_tag)
   for t in del_nbrs
-    if t in obs_tags
-      likelihood[t] += ERROR_RATE * DELETION_RATIO
+    if t in possible_real_tags
+      prob_given_reals[t] += ERROR_RATE * DELETION_RATIO
     end
   end
-  mut_nbrs = mutation_neighbours(tag)
+  mut_nbrs = mutation_neighbours(observed_tag)
   for t in mut_nbrs
-    if t in obs_tags
-      likelihood[t] += ERROR_RATE * MUTATION_RATIO * (1/3)
+    if t in possible_real_tags
+      prob_given_reals[t] += ERROR_RATE * MUTATION_RATIO * (1/3)
     end
   end
-  likelihood[tag] = (1 - ERROR_RATE) ^ length(tag)
-  return likelihood
+  prob_given_reals[observed_tag] = (1 - ERROR_RATE) ^ length(observed_tag)
+  return prob_given_reals
 end
 
 # function error_neighbours(tag, depth)
