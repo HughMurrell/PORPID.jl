@@ -5,6 +5,7 @@ module CustomLDA
 
   function LDA(probabilities_array, counts=ones(Int32, length(probabilities_array)))
     tag_count = length(probabilities_array)
+    converged_epsilon = 0.0000001 / tag_count
 
     prior = Array{Float64}(tag_count) # aka theta
     posterior= Array{Float64}(tag_count)
@@ -12,9 +13,9 @@ module CustomLDA
       prior[i] = 1.0/tag_count
       posterior[i] = 0.0
     end
-    iterations = 100
+    max_iterations = 1000
     temp_norm_total = 0.0
-    for iteration in 1:iterations
+    for iteration in 1:max_iterations
       # φ = Map[norm[θ*#] &, CL]
       for obs in 1:tag_count
         # Calculating the total for this row
@@ -31,9 +32,16 @@ module CustomLDA
       for real_index in 1:tag_count
         temp_norm_total += posterior[real_index] + CONCENTRATION
       end
+      converged = true
       for real_index in 1:tag_count
-        prior[real_index] = (posterior[real_index] + CONCENTRATION) / temp_norm_total
+        new_prior = (posterior[real_index] + CONCENTRATION) / temp_norm_total
+        converged = (converged && abs(new_prior-prior[real_index]) < converged_epsilon)
+        prior[real_index] = new_prior
         posterior[real_index] = 0.0
+      end
+      if (converged)
+        println(STDERR, "Converged after $(iteration) iterations")
+        break
       end
     end
 
