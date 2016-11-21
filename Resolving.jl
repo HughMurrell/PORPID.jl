@@ -67,27 +67,6 @@ function probabilities_to_row_array(probabilities, tag_to_index)
   return cl
 end
 
-function likelihoods_to_sparse_matrix(likelihoods, tag_to_index)
-  row_tag_indices = Array{Int32, 1}()
-  observed_tag_indices = Array{Int32, 1}()
-  probabilities = Array{Float32, 1}()
-  all_tags = keys(likelihoods)
-  for row_tag in all_tags
-    for obs_tag in keys(likelihoods[row_tag])
-      p = likelihoods[row_tag][obs_tag]
-      if (p != 0)
-        rti = tag_to_index[row_tag]
-        oti = tag_to_index[obs_tag]
-        push!(row_tag_indices, rti)
-        push!(observed_tag_indices, oti)
-        push!(probabilities, p)
-      end
-    end
-  end
-  size = length(all_tags)
-  return sparse(row_tag_indices, observed_tag_indices, probabilities, size, size)
-end
-
 function tag_index_mapping(tags)
   i = 0
   tag_to_index = Dict{ASCIIString, Int32}()
