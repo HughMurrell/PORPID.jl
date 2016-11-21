@@ -7,8 +7,8 @@ module CustomLDA
     tag_count = length(probabilities_array)
     converged_epsilon = 0.0000001 / tag_count
 
-    prior = Array{Float64}(tag_count) # aka theta
-    posterior= Array{Float64}(tag_count)
+    prior = Array{Float32}(tag_count) # aka theta
+    posterior= Array{Float32}(tag_count)
     for i in 1:tag_count
       prior[i] = 1.0/tag_count
       posterior[i] = 0.0
@@ -46,7 +46,7 @@ module CustomLDA
     end
 
     # Return value
-    most_likely_real_for_each_obs = Array{Tuple{Int32, Float64}}(tag_count)
+    most_likely_real_for_each_obs = Array{Tuple{Int32, Float32}}(tag_count)
     for obs in 1:tag_count
       best_prob = 0.0
       best_index = -1

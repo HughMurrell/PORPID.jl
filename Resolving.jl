@@ -52,10 +52,10 @@ end
 
 function probabilities_to_row_array(probabilities, tag_to_index)
   all_tags = keys(probabilities)
-  cl = Array{Array{Tuple{Int32, Float64}}}(length(all_tags))
+  cl = Array{Array{Tuple{Int32, Float32}}}(length(all_tags))
   for observation in all_tags
     observation_index = tag_to_index[observation]
-    cl[observation_index] = Array{Tuple{Int32, Float64}}(0)
+    cl[observation_index] = Array{Tuple{Int32, Float32}}(0)
     for possible_real_tag in keys(probabilities[observation])
       prob_obs_given_real = probabilities[observation][possible_real_tag]
       if (prob_obs_given_real != 0)
