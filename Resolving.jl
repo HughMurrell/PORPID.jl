@@ -118,23 +118,17 @@ function prob_observed_tag_given_reals(observed_tag, possible_real_tags)
   for possible_real_tag in possible_real_tags
     prob_given_reals[possible_real_tag] = 0
   end
-  ins_nbrs = insertion_neighbours(observed_tag)
+  ins_nbrs = insertion_neighbours(observed_tag, possible_real_tags)
   for t in ins_nbrs
-    if t in possible_real_tags
-      prob_given_reals[t] += ERROR_RATE * INSERTION_RATIO * (1/4)
-    end
+    prob_given_reals[t] += ERROR_RATE * INSERTION_RATIO * (1/4)
   end
-  del_nbrs = deletion_neighbours(observed_tag)
+  del_nbrs = deletion_neighbours(observed_tag, possible_real_tags)
   for t in del_nbrs
-    if t in possible_real_tags
-      prob_given_reals[t] += ERROR_RATE * DELETION_RATIO
-    end
+    prob_given_reals[t] += ERROR_RATE * DELETION_RATIO
   end
-  mut_nbrs = mutation_neighbours(observed_tag)
+  mut_nbrs = mutation_neighbours(observed_tag, possible_real_tags)
   for t in mut_nbrs
-    if t in possible_real_tags
-      prob_given_reals[t] += ERROR_RATE * MUTATION_RATIO * (1/3)
-    end
+    prob_given_reals[t] += ERROR_RATE * MUTATION_RATIO * (1/3)
   end
   prob_given_reals[observed_tag] = (1 - ERROR_RATE) ^ length(observed_tag)
   return prob_given_reals
@@ -153,34 +147,43 @@ end
 # e.g. there are three different deletions that turn AAA into AA
 
 #tag -> insertion -> neighbours
-function insertion_neighbours(tag)
+function insertion_neighbours(tag, possible_real_tags)
   neighbours = Array{ASCIIString, 1}()
+  word = ""
   for i in 1:length(tag) + 1
     for c in ['A', 'C', 'G', 'T']
-      push!(neighbours, insert_at(tag, i, c))
+      word = insert_at(tag, i, c)
+      if (word in possible_real_tags)
+        push!(neighbours, word)
+      end
     end
   end
   return neighbours
 end
 
 #tag -> deletion -> neighbours
-function deletion_neighbours(tag)
+function deletion_neighbours(tag, possible_real_tags)
   neighbours = Array{ASCIIString, 1}()
+  word = ""
   for i in 1:length(tag)
-    push!(neighbours, without(tag, i))
+    word =  without(tag, i)
+    if (word in possible_real_tags)
+      push!(neighbours, word)
+    end
   end
   return neighbours
 end
 
 #tag -> mutation -> neighbours
-function mutation_neighbours(tag)
+function mutation_neighbours(tag, possible_real_tags)
   neighbours = Array{ASCIIString, 1}()
+  word = ""
   for i in 1:length(tag)
     wo = without(tag, i)
     for c in ['A', 'C', 'G', 'T']
-      rep = insert_at(wo, i, c)
-      if (rep != tag)
-        push!(neighbours, rep)
+      word = insert_at(wo, i, c)
+      if (word in possible_real_tags && word != tag)
+        push!(neighbours, word)
       end
     end
   end
