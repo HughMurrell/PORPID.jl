@@ -113,7 +113,7 @@ function prob_observed_tags_given_reals(counts)
   return prob_observed_tags_given_reals
 end
 
-function prob_observed_tag_given_reals(observed_tag, possible_real_tags)
+function prob_observed_tag_given_reals(observed_tag::ASCIIString, possible_real_tags::Set{ASCIIString})
   prob_given_reals = Dict{ASCIIString, Float32}()
   for possible_real_tag in possible_real_tags
     prob_given_reals[possible_real_tag] = 0
@@ -134,26 +134,18 @@ function prob_observed_tag_given_reals(observed_tag, possible_real_tags)
   return prob_given_reals
 end
 
-# function error_neighbours(tag, depth)
-#   return error_neighbourhood(tag, depth, 1)
-# end
-#
-# function error_neighbourhood(tag, depth, n)
-#   neighbours = Array{ASCIIString}
-# end
-
 #The three neighbour functions below can have duplicate tags in the returned lists
 #This is used to accumulate probabilities when there are multiple error paths between two tags
 # e.g. there are three different deletions that turn AAA into AA
 
 #tag -> insertion -> neighbours
-function insertion_neighbours(tag, possible_real_tags)
+function insertion_neighbours(tag::ASCIIString, possible_real_tags::Set{ASCIIString})
   neighbours = Array{ASCIIString, 1}()
   word = ""
-  for i in 1:length(tag) + 1
-    for c in ['A', 'C', 'G', 'T']
+  for c in "ACTG"
+    for i in 1:length(tag) + 1
       word = insert_at(tag, i, c)
-      if (word in possible_real_tags)
+      if word in possible_real_tags
         push!(neighbours, word)
       end
     end
@@ -162,12 +154,12 @@ function insertion_neighbours(tag, possible_real_tags)
 end
 
 #tag -> deletion -> neighbours
-function deletion_neighbours(tag, possible_real_tags)
+function deletion_neighbours(tag::ASCIIString, possible_real_tags::Set{ASCIIString})
   neighbours = Array{ASCIIString, 1}()
   word = ""
   for i in 1:length(tag)
-    word =  without(tag, i)
-    if (word in possible_real_tags)
+    word = without(tag, i)
+    if word in possible_real_tags
       push!(neighbours, word)
     end
   end
@@ -175,14 +167,13 @@ function deletion_neighbours(tag, possible_real_tags)
 end
 
 #tag -> mutation -> neighbours
-function mutation_neighbours(tag, possible_real_tags)
+function mutation_neighbours(tag::ASCIIString, possible_real_tags::Set{ASCIIString})
   neighbours = Array{ASCIIString, 1}()
   word = ""
-  for i in 1:length(tag)
-    wo = without(tag, i)
-    for c in ['A', 'C', 'G', 'T']
-      word = insert_at(wo, i, c)
-      if (word in possible_real_tags && word != tag)
+  for c in "ACTG"
+    for i in 1:length(tag)
+      word = replace_at(tag, i, c)
+      if word in possible_real_tags && word != tag
         push!(neighbours, word)
       end
     end
@@ -190,30 +181,16 @@ function mutation_neighbours(tag, possible_real_tags)
   return neighbours
 end
 
-function without(str, i)
-  if i <= 0 || i > length(str)
-    return str
-  elseif i == 1
-    if length(str) > 1
-      return str[2:length(str)]
-    else
-      return ""
-    end
-  elseif i == length(str)
-    return str[1:length(str) - 1]
-  else
-    return "$(str[1:i-1])$(str[i+1:length(str)])"
-  end
+function without(str::ASCIIString, i)
+  return "$(str[1:i-1])$(str[i+1:length(str)])"
 end
 
-function insert_at(str, i, c)
-  if i <= 1
-    return "$c$str"
-  elseif i > length(str)
-    return "$str$c"
-  else
-    return "$(str[1:i-1])$c$(str[i:length(str)])"
-  end
+function insert_at(str::ASCIIString, i, c)
+  return "$(str[1:i-1])$c$(str[i:length(str)])"
+end
+
+function replace_at(str::ASCIIString, i, c)
+  return "$(str[1:i-1])$c$(str[i+1:length(str)])"
 end
 
 @time process(ARGS[1])
