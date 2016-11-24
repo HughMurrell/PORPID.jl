@@ -14,16 +14,13 @@ function process(path)
   println(STDERR, "Reading tag files...")
   @time counts = tag_counts(path)
 
-  println(STDERR, "Generating likelihood distributions...")
-  @time probabilities_dictionary = prob_observed_tags_given_reals(counts)
-
   println(STDERR, "Generating index mapping...")
   @time tag_to_index, index_to_tag = tag_index_mapping(Set(keys(counts)))
 
-  indexed_counts = index_counts(counts, tag_to_index)
+  println(STDERR, "Generating likelihood distributions...")
+  @time probabilities_array = prob_observed_tags_given_reals(tag_to_index)
 
-  println(STDERR, "Converting tag mapping to row array...")
-  @time probabilities_array = probabilities_to_row_array(probabilities_dictionary, tag_to_index)
+  indexed_counts = index_counts(counts, tag_to_index)
 
   println(STDERR, "Iterating..."  )
   @time most_likely_real_for_each_obs = CustomLDA.LDA(probabilities_array, indexed_counts)
@@ -48,23 +45,6 @@ function index_counts(counts, tag_to_index)
     indexed_counts[tag_to_index[tag]] = counts[tag]
   end
   return indexed_counts
-end
-
-function probabilities_to_row_array(probabilities, tag_to_index)
-  all_tags = keys(probabilities)
-  cl = Array{Array{Tuple{Int32, Float32}}}(length(all_tags))
-  for observation in all_tags
-    observation_index = tag_to_index[observation]
-    cl[observation_index] = Array{Tuple{Int32, Float32}}(0)
-    for possible_real_tag in keys(probabilities[observation])
-      prob_obs_given_real = probabilities[observation][possible_real_tag]
-      if (prob_obs_given_real != 0)
-        possible_real_tag_index = tag_to_index[possible_real_tag]
-        push!(cl[observation_index], (possible_real_tag_index, prob_obs_given_real))
-      end
-    end
-  end
-  return cl
 end
 
 function tag_index_mapping(tags)
@@ -103,35 +83,38 @@ function tag_counts(path)
   return counts
 end
 
-function prob_observed_tags_given_reals(counts)
-  observed_tags = Set(keys(counts))
-  possible_real_tags = observed_tags
-  prob_observed_tags_given_reals = Dict{ASCIIString, Dict{ASCIIString, Float32}}()
-  for observed_tag in observed_tags
-    prob_observed_tags_given_reals[observed_tag] = prob_observed_tag_given_reals(observed_tag, possible_real_tags)
+function prob_observed_tags_given_reals(tag_to_index::Dict{ASCIIString, Int32})
+  prob_observed_tags_given_reals = Array{Array{Tuple{Int32, Float32}}}(length(tag_to_index))
+  for observed_tag in keys(tag_to_index)
+    observed_index = tag_to_index[observed_tag]
+    prob_observed_tags_given_reals[observed_index] = prob_observed_tag_given_reals(observed_tag, tag_to_index)
   end
   return prob_observed_tags_given_reals
 end
 
-function prob_observed_tag_given_reals(observed_tag::ASCIIString, possible_real_tags::Set{ASCIIString})
-  prob_given_reals = Dict{ASCIIString, Float32}()
-  for possible_real_tag in possible_real_tags
-    prob_given_reals[possible_real_tag] = 0
-  end
-  ins_nbrs = insertion_neighbours(observed_tag, possible_real_tags)
+function prob_observed_tag_given_reals(observed_tag::ASCIIString, tag_to_index::Dict{ASCIIString, Int32})
+  prob_given_reals_dict = Dict{Int32, Float32}()
+  ins_nbrs = insertion_neighbours(observed_tag, tag_to_index)
   for t in ins_nbrs
-    prob_given_reals[t] += ERROR_RATE * INSERTION_RATIO * (1/4)
+    prob_given_reals_dict[t] = get(prob_given_reals_dict, t, 0.0) + ERROR_RATE * INSERTION_RATIO * (1/4)
   end
-  del_nbrs = deletion_neighbours(observed_tag, possible_real_tags)
+  del_nbrs = deletion_neighbours(observed_tag, tag_to_index)
   for t in del_nbrs
-    prob_given_reals[t] += ERROR_RATE * DELETION_RATIO
+    prob_given_reals_dict[t] = get(prob_given_reals_dict, t, 0.0) + ERROR_RATE * DELETION_RATIO
   end
-  mut_nbrs = mutation_neighbours(observed_tag, possible_real_tags)
+  mut_nbrs = mutation_neighbours(observed_tag, tag_to_index)
   for t in mut_nbrs
-    prob_given_reals[t] += ERROR_RATE * MUTATION_RATIO * (1/3)
+    prob_given_reals_dict[t] = get(prob_given_reals_dict, t, 0.0) + ERROR_RATE * MUTATION_RATIO * (1/3)
   end
-  prob_given_reals[observed_tag] = (1 - ERROR_RATE) ^ length(observed_tag)
-  return prob_given_reals
+  prob_given_reals_dict[tag_to_index[observed_tag]] = (1 - ERROR_RATE) ^ length(observed_tag)
+  # Collate dictionary into tuple array
+  tuple_array = Array{Tuple{Int32, Float32}}(length(prob_given_reals_dict))
+  i = 1
+  for (k, v) in prob_given_reals_dict
+    tuple_array[i] = (k, v)
+    i += 1
+  end
+  return tuple_array
 end
 
 #The three neighbour functions below can have duplicate tags in the returned lists
@@ -139,14 +122,14 @@ end
 # e.g. there are three different deletions that turn AAA into AA
 
 #tag -> insertion -> neighbours
-function insertion_neighbours(tag::ASCIIString, possible_real_tags::Set{ASCIIString})
-  neighbours = Array{ASCIIString, 1}()
+function insertion_neighbours(tag::ASCIIString, tag_to_index::Dict{ASCIIString, Int32})
+  neighbours = Array{Int32}(0)
   word = ""
   for c in "ACTG"
     for i in 1:length(tag) + 1
       word = insert_at(tag, i, c)
-      if word in possible_real_tags
-        push!(neighbours, word)
+      if haskey(tag_to_index, word)
+        push!(neighbours, tag_to_index[word])
       end
     end
   end
@@ -154,27 +137,27 @@ function insertion_neighbours(tag::ASCIIString, possible_real_tags::Set{ASCIIStr
 end
 
 #tag -> deletion -> neighbours
-function deletion_neighbours(tag::ASCIIString, possible_real_tags::Set{ASCIIString})
-  neighbours = Array{ASCIIString, 1}()
+function deletion_neighbours(tag::ASCIIString, tag_to_index::Dict{ASCIIString, Int32})
+  neighbours = Array{Int32}(0)
   word = ""
   for i in 1:length(tag)
     word = without(tag, i)
-    if word in possible_real_tags
-      push!(neighbours, word)
+    if haskey(tag_to_index, word)
+      push!(neighbours, tag_to_index[word])
     end
   end
   return neighbours
 end
 
 #tag -> mutation -> neighbours
-function mutation_neighbours(tag::ASCIIString, possible_real_tags::Set{ASCIIString})
-  neighbours = Array{ASCIIString, 1}()
+function mutation_neighbours(tag::ASCIIString, tag_to_index::Dict{ASCIIString, Int32})
+  neighbours = Array{Int32}(0)
   word = ""
   for c in "ACTG"
     for i in 1:length(tag)
       word = replace_at(tag, i, c)
-      if word in possible_real_tags && word != tag
-        push!(neighbours, word)
+      if haskey(tag_to_index, word) && word != tag
+        push!(neighbours, tag_to_index[word])
       end
     end
   end
