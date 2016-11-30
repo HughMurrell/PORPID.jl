@@ -14,6 +14,8 @@ function process(path)
   println(STDERR, "Reading tag files...")
   @time counts = tag_counts(path)
 
+  tag_file_names = tag_to_filename(path)
+
   println(STDERR, "Generating index mapping...")
   @time tag_to_index, index_to_tag = tag_index_mapping(Set(keys(counts)))
 
@@ -31,10 +33,9 @@ function process(path)
     real_index, prob = most_likely_real_for_each_obs[observed_index]
     observed_tag = index_to_tag[observed_index]
     real_tag = index_to_tag[real_index]
-    #println("$(index_to_tag[r])\t$(round(posterior[r,maxindex], 4))")
-    #if (maxval < 0.99)
-    println("$(observed_tag),$(counts[observed_tag]),$(real_tag),$(round(prob, 4))")
-    #end
+    if (prob > 0.99 && real_index == observed_index)
+      println("$(tag_file_names[real_tag])")
+    end
   end
 end
 
@@ -57,6 +58,22 @@ function tag_index_mapping(tags)
     index_to_tag[i] = t
   end
   return tag_to_index, index_to_tag
+end
+
+function tag_to_filename(path)
+  file_name_of_tag = Dict{ASCIIString, ASCIIString}()
+  for file in readdir(path)
+    file_name, extension = splitext(file)
+    if extension == ".fastq" && file_name != REJECT_TAG
+      tag = file_name
+      split_file_name = split(file_name, '_')
+      if length(split_file_name) == 2
+        tag = split_file_name[1]
+      end
+      file_name_of_tag[tag] = file
+    end
+  end
+  return file_name_of_tag
 end
 
 function tag_counts(path)
