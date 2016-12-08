@@ -12,22 +12,20 @@ const MUTATION_RATIO = 0.2
 function process(path)
   path = normpath(path)
   println(STDERR, "Reading tag files...")
-  @time counts = tag_counts(path)
-
+  counts = tag_counts(path)
   tag_file_names = tag_to_filename(path)
 
   println(STDERR, "Generating index mapping...")
-  @time tag_to_index, index_to_tag = tag_index_mapping(Set(keys(counts)))
+  tag_to_index, index_to_tag = tag_index_mapping(Set(keys(counts)))
 
   println(STDERR, "Generating likelihood distributions...")
-  @time probabilities_array = prob_observed_tags_given_reals(tag_to_index)
+  probabilities_array = prob_observed_tags_given_reals(tag_to_index)
 
   indexed_counts = index_counts(counts, tag_to_index)
 
   println(STDERR, "Iterating..."  )
-  @time most_likely_real_for_each_obs = CustomLDA.LDA(probabilities_array, indexed_counts)
+  most_likely_real_for_each_obs = CustomLDA.LDA(probabilities_array, indexed_counts)
 
-  println("tag,count,best_tag,best_score")
   tag_count = length(most_likely_real_for_each_obs)
   for observed_index in 1:tag_count
     real_index, prob = most_likely_real_for_each_obs[observed_index]
@@ -193,5 +191,5 @@ function replace_at(str::ASCIIString, i, c)
   return "$(str[1:i-1])$c$(str[i+1:length(str)])"
 end
 
-@time process(ARGS[1])
+process(ARGS[1])
 end
