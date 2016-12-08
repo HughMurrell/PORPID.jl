@@ -191,5 +191,5 @@ function replace_at(str::ASCIIString, i, c)
   return "$(str[1:i-1])$c$(str[i+1:length(str)])"
 end
 
-@time process(ARGS[1])
+process(ARGS[1])
 end
