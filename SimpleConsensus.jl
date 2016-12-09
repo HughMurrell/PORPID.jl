@@ -20,6 +20,7 @@ function consensus(fastaPath)
       end
     end
     consensus_seq = [mode([seq[i] for seq in seqs]) for i in 1:first_length]
+    filter!(e->e!=Nucleotides.DNA_GAP, consensus_seq)
     return consensus_seq
 end
 
