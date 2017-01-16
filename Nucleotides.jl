@@ -1,10 +1,11 @@
 module Nucleotides
-export DNASymbol, Sequence, prob, FastqIterator, quality_to_char, constituents, reverse_complement
+export DNASymbol, FastaSequence, FastqSequence, Sequence, prob, FastaIterator, FastqIterator, quality_to_char, constituents, reverse_complement
 
-@enum DNANucleotide DNA_A=1 DNA_C=2 DNA_G=3 DNA_T=4
+@enum DNANucleotide DNA_A=1 DNA_C=2 DNA_G=3 DNA_T=4 DNA_GAP=5
 @enum DNANucCombo DNA_R=1 DNA_Y=2 DNA_M=3 DNA_K=4 DNA_S=5 DNA_W=6 DNA_H=7 DNA_B=8 DNA_V=9 DNA_D=10 DNA_N=11
 
 letter_to_nucleotide = Dict([(repr(DNANucleotide(i))[5], DNANucleotide(i)) for i in 1:4])
+letter_to_nucleotide['-'] = DNA_GAP
 letter_to_nuc_combo = Dict([(repr(DNANucCombo(i))[5], DNANucCombo(i)) for i in 1:11])
 
 DNASymbol = Union{DNANucleotide, DNANucCombo}
@@ -77,6 +78,8 @@ function dna_complement(nucleotide::DNANucleotide)
     return DNA_G
   elseif nucleotide == DNA_G
     return DNA_C
+  elseif nucleotide == DNA_GAP
+    return DNA_GAP
   end
 end
 
@@ -86,7 +89,11 @@ function dna_complement(combo::DNANucCombo)
 end
 
 function Base.string(symbol::DNASymbol)
-  return repr(symbol)[5]
+  if symbol == DNA_GAP
+    return "-"
+  else
+    return repr(symbol)[5]
+  end
 end
 
 function Base.convert(::Type{DNASymbol}, symbol::DNASymbol)
@@ -104,26 +111,41 @@ function Base.convert(::Type{DNASymbol}, char::Char)
   end
 end
 
+immutable FastaIterator
+  line_iterator::EachLine
+end
+
 immutable FastqIterator
   line_iterator::EachLine
 end
 
-type Sequence
+type FastaSequence
+  label::ASCIIString
+  seq::Array{DNASymbol}
+end
+
+type FastqSequence
   label::ASCIIString
   seq::Array{DNASymbol}
   quality::Array{Int8}
 end
+Sequence = Union{FastaSequence, FastqSequence}
 
 function reverse_complement(sequence::Sequence)
   r_label = "r_$(sequence.label)"
   len = length(sequence.seq)
   rc_seq = Array{DNASymbol}(len)
-  r_quality = Array{Int8}(len)
   for i in 1:len
     rc_seq[i] = Nucleotides.dna_complement(sequence.seq[len + 1 - i])
-    r_quality[i] = sequence.quality[len + 1 - i]
   end
-  return Sequence(r_label, rc_seq, r_quality)
+  if typeof(sequence) <: FastqSequence
+    r_quality = Array{Int8}(len)
+    for i in 1:len
+      r_quality[i] = sequence.quality[len + 1 - i]
+    end
+    return FastqSequence(r_label, rc_seq, r_quality)
+  end
+  return FastaSequence(r_label, rc_seq)
 end
 
 function char_to_quality(char)
@@ -134,9 +156,37 @@ function quality_to_char(quality)
   return Char(round(quality) + 33)
 end
 
+FastaIterator(file_name::AbstractString) = FastaIterator(eachline(open(file_name)))
 FastqIterator(file_name::AbstractString) = FastqIterator(eachline(open(file_name)))
+Base.start(fi::Nucleotides.FastaIterator) = start(fi.line_iterator)
 Base.start(fi::Nucleotides.FastqIterator) = start(fi.line_iterator)
+Base.done(fi::Nucleotides.FastaIterator, state) = done(fi.line_iterator, state)
 Base.done(fi::Nucleotides.FastqIterator, state) = done(fi.line_iterator, state)
+
+function Base.next(fi::Nucleotides.FastaIterator, state)
+  label = nothing
+  if typeof(state) <: ASCIIString
+    label = state
+  else
+    line = chomp(next(fi.line_iterator, nothing)[1])
+    assert(line[1] == '>')
+    label = line[2:end]
+  end
+
+  sequence = Array{DNASymbol,1}()
+  next_label = nothing
+  while !done(fi.line_iterator, nothing)
+    line = chomp(next(fi.line_iterator, nothing)[1])
+    if line[1] == '>'
+      next_label = line[2:end]
+      break
+    end
+    for char in line
+      push!(sequence, convert(DNASymbol, char))
+    end
+  end
+  return FastaSequence(label, sequence), next_label
+end
 
 function Base.next(fi::Nucleotides.FastqIterator, state)
   label = nothing
@@ -162,6 +212,6 @@ function Base.next(fi::Nucleotides.FastqIterator, state)
     push!(quality, char_to_quality(char))
   end
 
-  return Sequence(label, sequence, quality), nothing
+  return FastqSequence(label, sequence, quality), nothing
 end
 end

@@ -184,5 +184,7 @@ function process(json_file)
   end #for each file to process
 end #process function
 
-process(ARGS[1])
+if length(ARGS) > 0
+  process(ARGS[1])
+end
 end
