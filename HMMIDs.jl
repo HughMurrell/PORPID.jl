@@ -160,7 +160,7 @@ function process(json_file)
       if !isdir("$OUTPUT_FOLDER/$folder_name")
         mkdir("$OUTPUT_FOLDER/$folder_name")
       end
-      println("Writing output to $(abspath("$OUTPUT_FOLDER/$folder_name")) ...")
+      println(STDERR, "Writing output to $(abspath("$OUTPUT_FOLDER/$folder_name")) ...")
 
       for plex_name in keys(plex_to_cluster_map)
         if !isdir("$OUTPUT_FOLDER/$folder_name/$plex_name")

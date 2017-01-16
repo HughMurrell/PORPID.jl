@@ -4,7 +4,7 @@ module Resolving
 using CustomLDA
 
 const REJECT_TAG = "REJECTS"
-const ERROR_RATE = 0.005
+const ERROR_RATE = 0.01
 const DELETION_RATIO = 0.4
 const INSERTION_RATIO = 0.4
 const MUTATION_RATIO = 0.2
@@ -191,5 +191,7 @@ function replace_at(str::ASCIIString, i, c)
   return "$(str[1:i-1])$c$(str[i+1:length(str)])"
 end
 
-process(ARGS[1])
+if length(ARGS) > 0
+  process(ARGS[1])
+end
 end
