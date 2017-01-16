@@ -2,7 +2,7 @@ push!(LOAD_PATH, ".")
 module HMMIDs
 import JSON
 
-using SmithWaterman
+using NeedlemanWunsch
 using States
 using Nucleotides
 using Observations
@@ -37,7 +37,7 @@ function process(json_file)
   params = JSON.parsefile(json_file)
 
   # Options
-  model = SmithWaterman
+  model = NeedlemanWunsch
   do_reverse_complement = true
   output_to_file = true
   print_rejects = true

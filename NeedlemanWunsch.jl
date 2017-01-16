@@ -1,5 +1,5 @@
 push!(LOAD_PATH, ".")
-module SmithWaterman
+module NeedlemanWunsch
 using Nucleotides
 using Observations
 using States
