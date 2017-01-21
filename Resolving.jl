@@ -48,8 +48,8 @@ end
 
 function tag_index_mapping(tags)
   i = 0
-  tag_to_index = Dict{ASCIIString, Int32}()
-  index_to_tag = Dict{Int32, ASCIIString}()
+  tag_to_index = Dict{String, Int32}()
+  index_to_tag = Dict{Int32, String}()
   for t in tags
     i += 1
     tag_to_index[t] = i
@@ -59,7 +59,7 @@ function tag_index_mapping(tags)
 end
 
 function tag_to_filename(path)
-  file_name_of_tag = Dict{ASCIIString, ASCIIString}()
+  file_name_of_tag = Dict{String, String}()
   for file in readdir(path)
     file_name, extension = splitext(file)
     if extension == ".fastq" && file_name != REJECT_TAG
@@ -75,7 +75,7 @@ function tag_to_filename(path)
 end
 
 function tag_counts(path)
-  counts = Dict{ASCIIString, Int32}()
+  counts = Dict{String, Int32}()
   for f in readdir(path)
     fname, extension = splitext(f)
     if extension == ".fastq" && fname != REJECT_TAG
@@ -98,7 +98,7 @@ function tag_counts(path)
   return counts
 end
 
-function prob_observed_tags_given_reals(tag_to_index::Dict{ASCIIString, Int32})
+function prob_observed_tags_given_reals(tag_to_index::Dict{String, Int32})
   prob_observed_tags_given_reals = Array{Array{Tuple{Int32, Float32}}}(length(tag_to_index))
   for observed_tag in keys(tag_to_index)
     observed_index = tag_to_index[observed_tag]
@@ -107,7 +107,7 @@ function prob_observed_tags_given_reals(tag_to_index::Dict{ASCIIString, Int32})
   return prob_observed_tags_given_reals
 end
 
-function prob_observed_tag_given_reals(observed_tag::ASCIIString, tag_to_index::Dict{ASCIIString, Int32})
+function prob_observed_tag_given_reals(observed_tag::String, tag_to_index::Dict{String, Int32})
   prob_given_reals_dict = Dict{Int32, Float32}()
   ins_nbrs = insertion_neighbours(observed_tag, tag_to_index)
   for t in ins_nbrs
@@ -137,7 +137,7 @@ end
 # e.g. there are three different deletions that turn AAA into AA
 
 #tag -> insertion -> neighbours
-function insertion_neighbours(tag::ASCIIString, tag_to_index::Dict{ASCIIString, Int32})
+function insertion_neighbours(tag::String, tag_to_index::Dict{String, Int32})
   neighbours = Array{Int32}(0)
   word = ""
   for c in "ACTG"
@@ -152,7 +152,7 @@ function insertion_neighbours(tag::ASCIIString, tag_to_index::Dict{ASCIIString, 
 end
 
 #tag -> deletion -> neighbours
-function deletion_neighbours(tag::ASCIIString, tag_to_index::Dict{ASCIIString, Int32})
+function deletion_neighbours(tag::String, tag_to_index::Dict{String, Int32})
   neighbours = Array{Int32}(0)
   word = ""
   for i in 1:length(tag)
@@ -165,7 +165,7 @@ function deletion_neighbours(tag::ASCIIString, tag_to_index::Dict{ASCIIString, I
 end
 
 #tag -> mutation -> neighbours
-function mutation_neighbours(tag::ASCIIString, tag_to_index::Dict{ASCIIString, Int32})
+function mutation_neighbours(tag::String, tag_to_index::Dict{String, Int32})
   neighbours = Array{Int32}(0)
   word = ""
   for c in "ACTG"
@@ -179,15 +179,15 @@ function mutation_neighbours(tag::ASCIIString, tag_to_index::Dict{ASCIIString, I
   return neighbours
 end
 
-function without(str::ASCIIString, i)
+function without(str::String, i)
   return "$(str[1:i-1])$(str[i+1:length(str)])"
 end
 
-function insert_at(str::ASCIIString, i, c)
+function insert_at(str::String, i, c)
   return "$(str[1:i-1])$c$(str[i:length(str)])"
 end
 
-function replace_at(str::ASCIIString, i, c)
+function replace_at(str::String, i, c)
   return "$(str[1:i-1])$c$(str[i+1:length(str)])"
 end
 

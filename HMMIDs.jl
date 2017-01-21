@@ -9,6 +9,7 @@ using Observations
 using ProfileHMMModel
 
 const DEFAULT_MAX_ERRORS = 2
+const DEFAULT_MAX_FILE_DESCRIPTORS = 1024
 const OUTPUT_FOLDER = "output"
 
 function py_index_to_julia(py_index, length, bound=false)
@@ -65,26 +66,27 @@ function process(json_file)
   end
 
   # Convert Patterns to StateSequences
-  for plex in params["multiplexes"]
-    reference_state_array = States.string_to_state_array(plex["reference"])
-    plex["reference_state_array"] = reference_state_array
+  for template in params["templates"]
+    reference_state_array = States.string_to_state_array(template["reference"])
+    template["reference_state_array"] = reference_state_array
     tag_length = 0
     for state in reference_state_array
       if typeof(state) <: AbstractBarcodeState
         tag_length = tag_length + 1
       end
     end
-    plex["tag_length"] = tag_length
+    template["tag_length"] = tag_length
   end
 
+  file_descriptors = LRUExample.BoundedLRU{String, IOStream}(DEFAULT_MAX_FILE_DESCRIPTORS)
   for file_name in params["files"]
     printif(params, "print_filename", "$(file_name)\n")
 
-    #plex name => (tag/cluster => sequences with scores)
+    #template name => (tag/cluster => sequences with scores)
     #i.e. folder => (file name => file contents)
-    plex_to_cluster_map = Dict{ASCIIString, Dict{ASCIIString, Array{Tuple{Nucleotides.Sequence, Float64}, 1}}}()
-    for plex in params["multiplexes"]
-      plex_to_cluster_map[plex["name"]] = Dict{ASCIIString, Array{Tuple{Nucleotides.Sequence, Float64}, 1}}()
+    template_to_cluster_map = Dict{String, Dict{String, Array{Tuple{Nucleotides.Sequence, Float64}, 1}}}()
+    for template in params["templates"]
+      template_to_cluster_map[template["name"]] = Dict{String, Array{Tuple{Nucleotides.Sequence, Float64}, 1}}()
     end
 
     for sequence in FastqIterator(file_name)
@@ -102,18 +104,18 @@ function process(json_file)
         rc_observations = Observations.reverse_complement(tail_observations)
       end
 
-      # Find best matching plex (group in a multiplexed sample)
-      best_plex_score = -Inf
-      best_plex = Union{}
-      best_plex_name = "None"
+      # Find best matching template (group in a multiplexed sample)
+      best_template_score = -Inf
+      best_template = Union{}
+      best_template_name = "None"
       best_tag = "None"
       best_errors = Inf
       is_best_reversed = false
-      for plex in params["multiplexes"]
-        score, tag, errors = model.extract_tag(observations, plex["reference_state_array"])
+      for template in params["templates"]
+        score, tag, errors = model.extract_tag(observations, template["reference_state_array"])
         reverse = false
         if do_reverse_complement
-          rc_score, rc_tag, rc_errors = model.extract_tag(rc_observations, plex["reference_state_array"])
+          rc_score, rc_tag, rc_errors = model.extract_tag(rc_observations, template["reference_state_array"])
           if rc_score > score
             reverse = true
             score = rc_score
@@ -122,11 +124,11 @@ function process(json_file)
           end
         end
 
-        printif(params, "print_all_scores", "$(plex["name"]) $(round(score, 2)) $(join(map(string, tag), ""))\n")
-        if score > best_plex_score
-          best_plex_score = score
-          best_plex = plex
-          best_plex_name = plex["name"]
+        printif(params, "print_all_scores", "$(template["name"]) $(round(score, 2)) $(join(map(string, tag), ""))\n")
+        if score > best_template_score
+          best_template_score = score
+          best_template = template
+          best_template_name = template["name"]
           best_tag = tag
           best_errors = errors
           is_best_reversed = reverse
@@ -135,17 +137,17 @@ function process(json_file)
 
       str_tag = length(best_tag) > 0 ? join(map(string, best_tag), "") : "NO_TAG"
       cluster_name = best_errors <= max_allowed_errors ? str_tag : "REJECTS"
-      cluster_to_sequences = plex_to_cluster_map[best_plex_name]
-      sequence_and_score = (is_best_reversed ? reverse_complement(sequence) : sequence, best_plex_score)
+      cluster_to_sequences = template_to_cluster_map[best_template_name]
+      sequence_and_score = (is_best_reversed ? reverse_complement(sequence) : sequence, best_template_score)
       if !haskey(cluster_to_sequences, cluster_name)
         cluster_to_sequences[cluster_name] = Array{Tuple{Nucleotides.Sequence, Float64}, 1}()
       end
       push!(cluster_to_sequences[cluster_name], sequence_and_score)
 
       if (best_errors <= max_allowed_errors || print_rejects)
-        printif(params, "print_plex", "\t$best_plex_name")
+        printif(params, "print_template", "\t$best_template_name")
         printif(params, "print_tag", "\t$str_tag")
-        printif(params, "print_score", "\t$(round(best_plex_score, 2))")
+        printif(params, "print_score", "\t$(round(best_template_score, 2))")
         printif(params, "print_error_count", "\t$best_errors")
         printif(params, "print_is_reverse", "\t$(is_best_reversed ? "Reverse" : "Normal")")
         println()
@@ -156,20 +158,20 @@ function process(json_file)
       if !isdir("$OUTPUT_FOLDER")
         mkdir("$OUTPUT_FOLDER")
       end
-      folder_name = splitext(basename(file_name))[1]
+      folder_name = basename(file_name)
       if !isdir("$OUTPUT_FOLDER/$folder_name")
         mkdir("$OUTPUT_FOLDER/$folder_name")
       end
       println(STDERR, "Writing output to $(abspath("$OUTPUT_FOLDER/$folder_name")) ...")
 
-      for plex_name in keys(plex_to_cluster_map)
-        if !isdir("$OUTPUT_FOLDER/$folder_name/$plex_name")
-          mkdir("$OUTPUT_FOLDER/$folder_name/$plex_name")
+      for template_name in keys(template_to_cluster_map)
+        if !isdir("$OUTPUT_FOLDER/$folder_name/$template_name")
+          mkdir("$OUTPUT_FOLDER/$folder_name/$template_name")
         end
 
-        cluster_to_sequences = plex_to_cluster_map[plex_name]
+        cluster_to_sequences = template_to_cluster_map[template_name]
         for cluster in keys(cluster_to_sequences)
-          open("$OUTPUT_FOLDER/$folder_name/$plex_name/$cluster.fastq", "w") do f
+          open("$OUTPUT_FOLDER/$folder_name/$template_name/$cluster.fastq", "w") do f
             sequence_and_score_array = cluster_to_sequences[cluster]
             for (sequence, score) in sequence_and_score_array
               str_sequence = join(map(string, sequence.seq), "")
@@ -178,7 +180,7 @@ function process(json_file)
             end #for each sequence
           end #open file
         end #for each cluster (tag)
-      end #for each plex
+      end #for each template
     end #output to files
 
   end #for each file to process
