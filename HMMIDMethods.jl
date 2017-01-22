@@ -7,24 +7,21 @@ using HMMIDConfig
 using States
 using Nucleotides
 using Observations
-using LRUExample
 
 const DEFAULT_MAX_ERRORS = 2
 const DEFAULT_MAX_FILE_DESCRIPTORS = 1024
 const OUTPUT_FOLDER = "output"
 
-output_files = LRUExample.BoundedLRU{String, IOStream}(DEFAULT_MAX_FILE_DESCRIPTORS)
-
-function process(json_file_location)
+function process(json_file_location, output_function)
   # Get configuration from json
   config = HMMIDConfig.read_from_json(json_file_location)
   for file_name in config.files
-    process_file(file_name, config)
+    process_file(file_name, config, output_function)
   end
 end
 
 # For every file
-function process_file(file_name, config)
+function process_file(file_name, config, output_function)
   start_i = config.start_inclusive
   end_i = config.end_inclusive
   try_reverse = config.try_reverse
@@ -36,7 +33,7 @@ function process_file(file_name, config)
     end
     tag = length(best_tag) > 0 ? join(map(string, best_tag), "") : "NO_TAG"
     tag = best_errors <= config.max_allowed_errors ? tag : "REJECTS"
-    write_to_file(file_name, best_template, tag, sequence, best_score)
+    output_function(file_name, best_template, tag, sequence, best_score)
   end
 end
 
@@ -99,12 +96,19 @@ function best_template(observations, templates)
 end
 
 function write_to_file(source_file_name, template, tag, output_sequence, score)
-  output_file_name = "output/$(source_file_name)/$(template)/$(tag).fastq"
-  println("$(output_sequence.label) $(tag) $(score)")
-  # Get output file name
-  # Check LRU for existing reference to file
-  # If yes, use reference, if not, create new one and store in LRU
-  # Append this sequence to the file
+  source_file_name = basename(source_file_name)
+  output_file_name = "output/$(source_file_name)/$(template.name)/$(tag).fastq"
+  mkpath("output/$(source_file_name)/$(template.name)")
+  println("Writing to $(output_file_name)")
+  fo = open(output_file_name, "a")
+  str_sequence = join(map(string, output_sequence.seq), "")
+  str_quality = join(map(quality_to_char, output_sequence.quality), "")
+  write(fo, "@$(output_sequence.label)($(round(score, 2)))\n$str_sequence\n+\n$str_quality\n")
 end
 
+end
+
+if length(ARGS) > 0
+  println("Processing $(ARGS[1])")
+  HMMIDMethods.process(ARGS[1], HMMIDMethods.write_to_file)
 end
