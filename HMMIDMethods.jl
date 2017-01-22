@@ -13,23 +13,8 @@ const DEFAULT_MAX_ERRORS = 2
 const DEFAULT_MAX_FILE_DESCRIPTORS = 1024
 const OUTPUT_FOLDER = "output"
 
-#Go through each template
-#get a score
-#Method: remember which is best
-#Check the number of errors. If too many, tag is "REJECTS"
-#Check the tag length, if zero, tag is "NO_TAG"
-#If reversed, reverse the sequence
-#Push sequence onto tag "cluster"
-#Output all clusters to files.
+output_files = LRUExample.BoundedLRU{String, IOStream}(DEFAULT_MAX_FILE_DESCRIPTORS)
 
-#It should be an iterator for every Sequence of every file listed, converted into a observation array.
-#Then run the "Best Score" method with the sequence and the list of potential template's.
-#Then save to file
-
-# Json parameters object/type?
-# Patterns
-
-# files
 function process(json_file_location)
   # Get configuration from json
   config = HMMIDConfig.read_from_json(json_file_location)
@@ -51,7 +36,7 @@ function process_file(file_name, config)
     end
     tag = length(best_tag) > 0 ? join(map(string, best_tag), "") : "NO_TAG"
     tag = best_errors <= config.max_allowed_errors ? tag : "REJECTS"
-    write_to_file(file_name, tag, sequence, best_score)
+    write_to_file(file_name, best_template, tag, sequence, best_score)
   end
 end
 
@@ -113,7 +98,8 @@ function best_template(observations, templates)
   return best_score, best_template, best_tag, best_errors
 end
 
-function write_to_file(source_file_name, tag, output_sequence, score)
+function write_to_file(source_file_name, template, tag, output_sequence, score)
+  output_file_name = "output/$(source_file_name)/$(template)/$(tag).fastq"
   println("$(output_sequence.label) $(tag) $(score)")
   # Get output file name
   # Check LRU for existing reference to file
