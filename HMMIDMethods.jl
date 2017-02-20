@@ -104,6 +104,7 @@ function write_to_file(source_file_name, template, tag, output_sequence, score)
   str_sequence = join(map(string, output_sequence.seq), "")
   str_quality = join(map(quality_to_char, output_sequence.quality), "")
   write(fo, "@$(output_sequence.label)($(round(score, 2)))\n$str_sequence\n+\n$str_quality\n")
+  fo.close()
 end
 
 end
