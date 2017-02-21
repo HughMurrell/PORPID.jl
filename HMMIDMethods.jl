@@ -109,7 +109,8 @@ end
 
 end
 
-if length(ARGS) > 0
+if PROGRAM_FILE == @__FILE__
   println("Processing $(ARGS[1])")
   HMMIDMethods.process(ARGS[1], HMMIDMethods.write_to_file)
+end
 end

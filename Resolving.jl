@@ -1,5 +1,6 @@
 push!(LOAD_PATH, ".")
 module Resolving
+export tag_index_mapping, prob_observed_tags_given_reals, index_counts
 
 using CustomLDA
 
@@ -191,7 +192,7 @@ function replace_at(str::String, i, c)
   return "$(str[1:i-1])$c$(str[i+1:length(str)])"
 end
 
-if length(ARGS) > 0
+if PROGRAM_FILE == @__FILE__
   process(ARGS[1])
 end
 end
