@@ -59,6 +59,7 @@ function tag_index_mapping(tags)
   return tag_to_index, index_to_tag
 end
 
+# Traverse a directory, finding files corresponding to tags, returning a dictionary with the tags and their assosciated filepaths
 function tag_to_filename(path)
   file_name_of_tag = Dict{String, String}()
   for file in readdir(path)

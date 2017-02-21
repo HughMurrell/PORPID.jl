@@ -107,6 +107,16 @@ function write_to_file(source_file_name, template, tag, output_sequence, score)
   fo.close()
 end
 
+function write_to_dictionary(dictionary, source_file_name, template, tag, output_sequence, score)
+  directory = "$(source_file_name)/$(template.name)"
+  if !haskey(dictionary, directory)
+    dictionary[directory] = Dict()
+  end
+  directory_dict = dictionary[directory]
+  if !haskey(directory_dict, tag)
+    directory_dict[tag] = []
+  end
+  push!(directory_dict[tag], (score, output_sequence))
 end
 
 if PROGRAM_FILE == @__FILE__
