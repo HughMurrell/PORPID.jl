@@ -11,6 +11,7 @@ using Observations
 const DEFAULT_MAX_ERRORS = 2
 const DEFAULT_MAX_FILE_DESCRIPTORS = 1024
 const OUTPUT_FOLDER = "output"
+const DEFAULT_QUALITY = 30
 
 function process(json_file_location, output_function)
   # Get configuration from json
@@ -25,7 +26,15 @@ function process_file(file_name, config, output_function)
   start_i = config.start_inclusive
   end_i = config.end_inclusive
   try_reverse = config.try_reverse
-  for sequence in FastqIterator(file_name)
+  if config.filetype == fastq
+    iterator = FastqIterator(file_name)
+  else
+    iterator = FastaIterator(file_name)
+  end
+  for sequence in iterator
+    if typeof(sequence) <: FastaSequence
+      sequence = FastqSequence(sequence.label, sequence.seq, fill(DEFAULT_QUALITY, length(sequence.seq)))
+    end
     best_score, best_template, best_tag, best_errors, is_reversed = best_of_forward_and_reverse(
         sequence_to_observations(sequence, start_i, end_i, try_reverse), config.templates)
     if is_reversed
@@ -99,12 +108,11 @@ function write_to_file(source_file_name, template, tag, output_sequence, score)
   source_file_name = basename(source_file_name)
   output_file_name = "output/$(source_file_name)/$(template.name)/$(tag).fastq"
   mkpath("output/$(source_file_name)/$(template.name)")
-  println("Writing to $(output_file_name)")
   fo = open(output_file_name, "a")
   str_sequence = join(map(string, output_sequence.seq), "")
   str_quality = join(map(quality_to_char, output_sequence.quality), "")
   write(fo, "@$(output_sequence.label)($(round(score, 2)))\n$str_sequence\n+\n$str_quality\n")
-  fo.close()
+  close(fo)
 end
 
 function write_to_dictionary(dictionary, source_file_name, template, tag, output_sequence, score)
@@ -117,6 +125,16 @@ function write_to_dictionary(dictionary, source_file_name, template, tag, output
     directory_dict[tag] = []
   end
   push!(directory_dict[tag], (score, output_sequence))
+end
+
+function write_to_file_count_to_dict(dictionary, source_file_name, template, tag, output_sequence, score)
+  write_to_file(source_file_name, template, tag, output_sequence, score)
+  directory = "$(source_file_name)/$(template.name)"
+  if !haskey(dictionary, directory)
+    dictionary[directory] = Dict()
+  end
+  directory_dict = dictionary[directory]
+  directory_dict[tag] = get(directory_dict, tag, 0) + 1
 end
 
 if PROGRAM_FILE == @__FILE__

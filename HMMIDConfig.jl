@@ -1,6 +1,6 @@
 push!(LOAD_PATH, ".")
 module HMMIDConfig
-export Configuration, Template, read_from_json
+export Configuration, Template, fasta, fastq, read_from_json
 import JSON
 
 using States
@@ -14,8 +14,11 @@ end
 Template(name::String, reference::String) =
     Template(name, string_to_state_array(reference))
 
+@enum FileType fastq=1 fasta=2
+
 type Configuration
   files::Array{String,1}
+  filetype::FileType
   start_inclusive::Integer
   end_inclusive::Integer
   max_allowed_errors::Integer
@@ -23,7 +26,7 @@ type Configuration
   templates::Array{Template,1}
 end
 
-Configuration() = Configuration(Array{String}(0), 0, -1, 4, false, Array{Template}(0))
+Configuration() = Configuration(Array{String}(0), fastq, 0, -1, 4, false, Array{Template}(0))
 
 function read_from_json(json_file_location)
   config = Configuration()
@@ -32,6 +35,7 @@ function read_from_json(json_file_location)
   if haskey(params, "options")
     config.try_reverse = get(params["options"], "do_reverse_complement", config.try_reverse)
   end
+  config.filetype = get(params, "filetype", config.filetype)
   config.start_inclusive = get(params, "start_inclusive", config.start_inclusive)
   config.end_inclusive = get(params, "end_inclusive", config.end_inclusive)
   config.max_allowed_errors = get(params, "max_allowed_errors", config.max_allowed_errors)
