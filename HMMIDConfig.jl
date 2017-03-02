@@ -16,6 +16,10 @@ Template(name::String, reference::String) =
 
 @enum FileType fastq=1 fasta=2
 
+function Base.convert(::Type{FileType}, str_repr::String)
+  return (lowercase(str_repr) == "fasta") ? fasta : fastq
+end
+
 type Configuration
   files::Array{String,1}
   filetype::FileType

@@ -78,7 +78,7 @@ function process(json_file)
     template["tag_length"] = tag_length
   end
 
-  file_descriptors = LRUExample.BoundedLRU{String, IOStream}(DEFAULT_MAX_FILE_DESCRIPTORS)
+  #file_descriptors = LRUExample.BoundedLRU{String, IOStream}(DEFAULT_MAX_FILE_DESCRIPTORS)
   for file_name in params["files"]
     printif(params, "print_filename", "$(file_name)\n")
 
