@@ -137,8 +137,21 @@ function write_to_file_count_to_dict(dictionary, source_file_name, template, tag
   directory_dict[tag] = get(directory_dict, tag, 0) + 1
 end
 
-if PROGRAM_FILE == @__FILE__
+if basename(PROGRAM_FILE) == basename(@__FILE__)
   println("Processing $(ARGS[1])")
-  HMMIDMethods.process(ARGS[1], HMMIDMethods.write_to_file)
+  dir_dict = Dict()
+  my_output_func(source_file_name, template, tag, output_sequence, score) = write_to_file_count_to_dict(dir_dict, source_file_name, template, tag, output_sequence, score)
+  HMMIDMethods.process(ARGS[1], my_output_func)
+  for dir in keys(dir_dict)
+    println(dir)
+    sizes = []
+    for key in keys(dir_dict[dir])
+      push!(sizes, (dir_dict[dir][key], key))
+    end
+    sort!(sizes)
+    for (size, key) in sizes
+      println(key, "\t", size)
+    end
+  end
 end
 end
