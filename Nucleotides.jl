@@ -88,6 +88,10 @@ function dna_complement(combo::DNANucCombo)
   return combine(Set{DNANucleotide}(map(dna_complement, constituents(combo))))
 end
 
+function Base.string(array::Array{DNASymbol})
+  return join(map(string, array))
+end
+
 function Base.string(symbol::DNASymbol)
   if symbol == DNA_GAP
     return "-"

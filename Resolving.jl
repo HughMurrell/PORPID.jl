@@ -5,12 +5,18 @@ export tag_index_mapping, prob_observed_tags_given_reals, index_counts
 using CustomLDA
 
 const REJECT_TAG = "REJECTS"
-const ERROR_RATE = 0.01
-const DELETION_RATIO = 0.4
-const INSERTION_RATIO = 0.4
-const MUTATION_RATIO = 0.2
 
-function process(path)
+type ErrorModel
+  error_rate::Float64
+  deletion_ratio::Float64
+  insertion_ratio::Float64
+  mutation_ratio::Float64
+end
+
+PacBioErrorModel(error_rate=0.005) = ErrorModel(error_rate, 0.4, 0.4, 0.2)
+IlluminaErrorModel(error_rate=0.001) = ErrorModel(error_rate, 0.05, 0.05, 0.9)
+
+function process(path, error_model=PacBioErrorModel())
   path = normpath(path)
   println(STDERR, "Reading tag files...")
   counts = tag_counts(path)
@@ -20,7 +26,7 @@ function process(path)
   tag_to_index, index_to_tag = tag_index_mapping(Set(keys(counts)))
 
   println(STDERR, "Generating likelihood distributions...")
-  probabilities_array = prob_observed_tags_given_reals(tag_to_index)
+  probabilities_array = prob_observed_tags_given_reals(tag_to_index, error_model)
 
   indexed_counts = index_counts(counts, tag_to_index)
 
@@ -100,37 +106,45 @@ function tag_counts(path)
   return counts
 end
 
-function prob_observed_tags_given_reals(tag_to_index::Dict{String, Int32})
+function prob_observed_tags_given_reals(tag_to_index::Dict{String, Int32}, error_model::ErrorModel, recurse=0)
   prob_observed_tags_given_reals = Array{Array{Tuple{Int32, Float32}}}(length(tag_to_index))
+  global memoisation = Dict{Tuple{String, Int64}, Array{Tuple{Int32,Float32}}}()
   for observed_tag in keys(tag_to_index)
     observed_index = tag_to_index[observed_tag]
-    prob_observed_tags_given_reals[observed_index] = prob_observed_tag_given_reals(observed_tag, tag_to_index)
+    prob_observed_tags_given_reals[observed_index] = prob_observed_tag_given_reals(observed_tag, tag_to_index, error_model, recurse)
   end
   return prob_observed_tags_given_reals
 end
 
-function prob_observed_tag_given_reals(observed_tag::String, tag_to_index::Dict{String, Int32})
+function prob_observed_tag_given_reals(observed_tag::String, tag_to_index::Dict{String, Int32}, error_model::ErrorModel, recurse=0)
+  global memoisation
+  if haskey(memoisation, (observed_tag, recurse))
+    return memoisation[(observed_tag, recurse)]
+  end
   prob_given_reals_dict = Dict{Int32, Float32}()
-  ins_nbrs = insertion_neighbours(observed_tag, tag_to_index)
-  for t in ins_nbrs
-    prob_given_reals_dict[t] = get(prob_given_reals_dict, t, 0.0) + ERROR_RATE * INSERTION_RATIO * (1/4)
+  ins_nbrs = insertion_neighbours(observed_tag, tag_to_index, error_model, recurse)
+  for (index, prob) in ins_nbrs
+    prob_given_reals_dict[index] = get(prob_given_reals_dict, index, 0.0) + error_model.error_rate * error_model.insertion_ratio * (1/4) * prob
   end
-  del_nbrs = deletion_neighbours(observed_tag, tag_to_index)
-  for t in del_nbrs
-    prob_given_reals_dict[t] = get(prob_given_reals_dict, t, 0.0) + ERROR_RATE * DELETION_RATIO
+  del_nbrs = deletion_neighbours(observed_tag, tag_to_index, error_model, recurse)
+  for (index, prob) in del_nbrs
+    prob_given_reals_dict[index] = get(prob_given_reals_dict, index, 0.0) + error_model.error_rate * error_model.deletion_ratio * prob
   end
-  mut_nbrs = mutation_neighbours(observed_tag, tag_to_index)
-  for t in mut_nbrs
-    prob_given_reals_dict[t] = get(prob_given_reals_dict, t, 0.0) + ERROR_RATE * MUTATION_RATIO * (1/3)
+  mut_nbrs = mutation_neighbours(observed_tag, tag_to_index, error_model, recurse)
+  for (index, prob) in mut_nbrs
+    prob_given_reals_dict[index] = get(prob_given_reals_dict, index, 0.0) + error_model.error_rate * error_model.mutation_ratio * (1/3) * prob
   end
-  prob_given_reals_dict[tag_to_index[observed_tag]] = (1 - ERROR_RATE) ^ length(observed_tag)
+  if haskey(tag_to_index, observed_tag)
+    prob_given_reals_dict[tag_to_index[observed_tag]] = (1 - error_model.error_rate) ^ length(observed_tag)
+  end
   # Collate dictionary into tuple array
   tuple_array = Array{Tuple{Int32, Float32}}(length(prob_given_reals_dict))
   i = 1
-  for (k, v) in prob_given_reals_dict
-    tuple_array[i] = (k, v)
+  for (index, prob) in prob_given_reals_dict
+    tuple_array[i] = (index, prob)
     i += 1
   end
+  memoisation[(observed_tag, recurse)] = tuple_array
   return tuple_array
 end
 
@@ -139,14 +153,16 @@ end
 # e.g. there are three different deletions that turn AAA into AA
 
 #tag -> insertion -> neighbours
-function insertion_neighbours(tag::String, tag_to_index::Dict{String, Int32})
-  neighbours = Array{Int32}(0)
+function insertion_neighbours(tag::String, tag_to_index::Dict{String, Int32}, error_model, recurse)
+  neighbours = Array{Tuple{Int32, Float32}}(0)
   word = ""
   for c in "ACTG"
     for i in 1:length(tag) + 1
       word = insert_at(tag, i, c)
-      if haskey(tag_to_index, word)
-        push!(neighbours, tag_to_index[word])
+      if recurse > 0
+        append!(neighbours, prob_observed_tag_given_reals(word, tag_to_index, error_model, recurse-1))
+      elseif haskey(tag_to_index, word)
+        push!(neighbours, (tag_to_index[word], 1.0))
       end
     end
   end
@@ -154,27 +170,31 @@ function insertion_neighbours(tag::String, tag_to_index::Dict{String, Int32})
 end
 
 #tag -> deletion -> neighbours
-function deletion_neighbours(tag::String, tag_to_index::Dict{String, Int32})
-  neighbours = Array{Int32}(0)
+function deletion_neighbours(tag::String, tag_to_index::Dict{String, Int32}, error_model, recurse)
+  neighbours = Array{Tuple{Int32, Float32}}(0)
   word = ""
   for i in 1:length(tag)
     word = without(tag, i)
-    if haskey(tag_to_index, word)
-      push!(neighbours, tag_to_index[word])
+    if recurse > 0
+      append!(neighbours, prob_observed_tag_given_reals(word, tag_to_index, error_model, recurse-1))
+    elseif haskey(tag_to_index, word)
+      push!(neighbours, (tag_to_index[word], 1.0))
     end
   end
   return neighbours
 end
 
 #tag -> mutation -> neighbours
-function mutation_neighbours(tag::String, tag_to_index::Dict{String, Int32})
-  neighbours = Array{Int32}(0)
+function mutation_neighbours(tag::String, tag_to_index::Dict{String, Int32}, error_model, recurse)
+  neighbours = Array{Tuple{Int32, Float32}}(0)
   word = ""
   for c in "ACTG"
     for i in 1:length(tag)
       word = replace_at(tag, i, c)
-      if haskey(tag_to_index, word) && word != tag
-        push!(neighbours, tag_to_index[word])
+      if recurse > 0
+        append!(neighbours, prob_observed_tag_given_reals(word, tag_to_index, error_model, recurse-1))
+      elseif haskey(tag_to_index, word) && word != tag
+        push!(neighbours, (tag_to_index[word], 1.0))
       end
     end
   end
