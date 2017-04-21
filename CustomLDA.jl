@@ -1,11 +1,11 @@
 module CustomLDA
   export LDA
 
-  const CONCENTRATION = 0.5
+  const DEFAULT_CONCENTRATION = 0.5
 
-  function LDA(probabilities_array, counts=ones(Int32, length(probabilities_array)))
+  function LDA(probabilities_array, counts=ones(Int32, length(probabilities_array)); concentration=DEFAULT_CONCENTRATION)
     tag_count = length(probabilities_array)
-    converged_epsilon = 0.0000001 / tag_count
+    converged_epsilon = 0.00000000000000001 / tag_count
 
     prior = Array{Float32}(tag_count) # aka theta
     posterior= Array{Float32}(tag_count)
@@ -30,11 +30,11 @@ module CustomLDA
       end
       temp_norm_total = 0.0
       for real_index in 1:tag_count
-        temp_norm_total += posterior[real_index] + CONCENTRATION
+        temp_norm_total += posterior[real_index] + concentration
       end
       converged = true
       for real_index in 1:tag_count
-        new_prior = (posterior[real_index] + CONCENTRATION) / temp_norm_total
+        new_prior = (posterior[real_index] + concentration) / temp_norm_total
         converged = (converged && abs(new_prior-prior[real_index]) < converged_epsilon)
         prior[real_index] = new_prior
         posterior[real_index] = 0.0

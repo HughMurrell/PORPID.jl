@@ -88,6 +88,10 @@ function dna_complement(combo::DNANucCombo)
   return combine(Set{DNANucleotide}(map(dna_complement, constituents(combo))))
 end
 
+function Base.string(array::Array{DNASymbol})
+  return join(map(string, array))
+end
+
 function Base.string(symbol::DNASymbol)
   if symbol == DNA_GAP
     return "-"
@@ -120,12 +124,12 @@ immutable FastqIterator
 end
 
 type FastaSequence
-  label::ASCIIString
+  label::String
   seq::Array{DNASymbol}
 end
 
 type FastqSequence
-  label::ASCIIString
+  label::String
   seq::Array{DNASymbol}
   quality::Array{Int8}
 end
@@ -156,8 +160,8 @@ function quality_to_char(quality)
   return Char(round(quality) + 33)
 end
 
-FastaIterator(file_name::AbstractString) = FastaIterator(eachline(open(file_name)))
-FastqIterator(file_name::AbstractString) = FastqIterator(eachline(open(file_name)))
+FastaIterator(file_name::String) = FastaIterator(eachline(open(file_name)))
+FastqIterator(file_name::String) = FastqIterator(eachline(open(file_name)))
 Base.start(fi::Nucleotides.FastaIterator) = start(fi.line_iterator)
 Base.start(fi::Nucleotides.FastqIterator) = start(fi.line_iterator)
 Base.done(fi::Nucleotides.FastaIterator, state) = done(fi.line_iterator, state)
@@ -165,7 +169,7 @@ Base.done(fi::Nucleotides.FastqIterator, state) = done(fi.line_iterator, state)
 
 function Base.next(fi::Nucleotides.FastaIterator, state)
   label = nothing
-  if typeof(state) <: ASCIIString
+  if typeof(state) <: String
     label = state
   else
     line = chomp(next(fi.line_iterator, nothing)[1])
@@ -190,7 +194,7 @@ end
 
 function Base.next(fi::Nucleotides.FastqIterator, state)
   label = nothing
-  if typeof(state) <: ASCIIString
+  if typeof(state) <: String
     label = state
   end
   line = chomp(next(fi.line_iterator, nothing)[1])

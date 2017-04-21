@@ -32,7 +32,7 @@ type BarcodeState <: AbstractBarcodeState
   value::DNASymbol
 end
 
-function string_to_state_array(string_sequence::AbstractString)
+function string_to_state_array(string_sequence::String)
   states = Array{AbstractState,1}()
   push!(states, StartingState())
   for char in string_sequence
