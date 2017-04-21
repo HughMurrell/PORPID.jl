@@ -22,7 +22,7 @@ function process(json_file_location, output_function)
 end
 
 # For every file
-function process_file(file_name, config, output_function)
+function process_file(file_name, config, output_function; print_every=0, print_callback=x->println("Processed $(x) sequences"))
   start_i = config.start_inclusive
   end_i = config.end_inclusive
   try_reverse = config.try_reverse
@@ -31,6 +31,7 @@ function process_file(file_name, config, output_function)
   else
     iterator = FastaIterator(file_name)
   end
+  i = 0
   for sequence in iterator
     if typeof(sequence) <: FastaSequence
       sequence = FastqSequence(sequence.label, sequence.seq, fill(DEFAULT_QUALITY, length(sequence.seq)))
@@ -43,6 +44,10 @@ function process_file(file_name, config, output_function)
     tag = length(best_tag) > 0 ? join(map(string, best_tag), "") : "NO_TAG"
     tag = best_errors <= config.max_allowed_errors ? tag : "REJECTS"
     output_function(file_name, best_template, tag, sequence, best_score)
+    i += 1
+    if print_every > 0 && i % print_every == 0
+      print_callback(i)
+    end
   end
 end
 
