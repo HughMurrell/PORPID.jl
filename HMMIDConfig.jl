@@ -4,7 +4,6 @@ export Configuration, Template, fasta, fastq, read_from_json
 import JSON
 
 using States
-using Nucleotides
 
 type Template
   name::String
@@ -24,24 +23,28 @@ type Configuration
   files::Array{String,1}
   filetype::FileType
   start_inclusive::Integer
+  reverse_start_inclusive::Integer
   end_inclusive::Integer
+  reverse_end_inclusive::Integer
   max_allowed_errors::Integer
-  try_reverse::Bool
+  try_reverse_complement::Bool
   templates::Array{Template,1}
 end
 
-Configuration() = Configuration(Array{String}(0), fastq, 0, -1, 4, false, Array{Template}(0))
+Configuration() = Configuration(Array{String}(0), fastq, -1, -1, -1, -1, 4, false, Array{Template}(0))
 
 function read_from_json(json_file_location)
   config = Configuration()
   params = JSON.parsefile(json_file_location)
   config.files = params["files"]
   if haskey(params, "options")
-    config.try_reverse = get(params["options"], "do_reverse_complement", config.try_reverse)
+    config.try_reverse_complement = get(params["options"], "do_reverse_complement", config.try_reverse_complement)
   end
   config.filetype = get(params, "filetype", config.filetype)
   config.start_inclusive = get(params, "start_inclusive", config.start_inclusive)
+  config.reverse_start_inclusive = get(params, "reverse_start_inclusive", config.reverse_start_inclusive)
   config.end_inclusive = get(params, "end_inclusive", config.end_inclusive)
+  config.reverse_end_inclusive = get(params, "reverse_end_inclusive", config.reverse_end_inclusive)
   config.max_allowed_errors = get(params, "max_allowed_errors", config.max_allowed_errors)
   for json_template in params["templates"]
     template = Template(json_template["name"], json_template["reference"])

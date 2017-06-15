@@ -1,11 +1,12 @@
 push!(LOAD_PATH, ".")
 module HMMIDMethods
-export process, process_file, sequence_to_observation, best_of_forward_and_reverse
+export process, process_file, sequence_to_observation, best_of_forward_and_reverse, slice_sequence
 
 using NeedlemanWunsch
 using HMMIDConfig
 using States
-using Nucleotides
+using Bio
+using Bio.Seq
 using Observations
 
 const DEFAULT_MAX_ERRORS = 2
@@ -24,24 +25,34 @@ end
 # For every file
 function process_file(file_name, config, output_function; print_every=0, print_callback=x->println("Processed $(x) sequences"))
   start_i = config.start_inclusive
+  r_start_i = config.reverse_start_inclusive
   end_i = config.end_inclusive
-  try_reverse = config.try_reverse
+  r_end_i = config.reverse_end_inclusive
+  try_reverse_complement = config.try_reverse_complement
   if config.filetype == fastq
-    iterator = FastqIterator(file_name)
+    iterator = open(FASTQReader, file_name)
   else
-    iterator = FastaIterator(file_name)
+    iterator = open(FASTAReader, file_name)
   end
   i = 0
   for sequence in iterator
-    if typeof(sequence) <: FastaSequence
-      sequence = FastqSequence(sequence.label, sequence.seq, fill(DEFAULT_QUALITY, length(sequence.seq)))
+    if typeof(sequence.metadata) <: Bio.Seq.FASTAMetadata
+      # Could do this is the slice_sequence method, but if we want to print out the sequences, it's best to have it here
+      sequence = Bio.Seq.SeqRecord(sequence.name, sequence.seq, Bio.Seq.FASTQMetadata(sequence.metadata.description, fill(Int8(DEFAULT_QUALITY), length(sequence.seq))))
     end
-    best_score, best_template, best_tag, best_errors, is_reversed = best_of_forward_and_reverse(
-        sequence_to_observations(sequence, start_i, end_i, try_reverse), config.templates)
-    if is_reversed
-      sequence = reverse_complement(sequence)
+    forward_seq, forward_quality = slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, false)
+    is_reverse_complement = false
+    if try_reverse_complement
+      reverse_seq, reverse_quality = slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, true)
+      best_score, best_template, best_tag, best_errors, is_reverse_complement = best_of_forward_and_reverse(forward_seq, forward_quality, reverse_seq, reverse_quality, config.templates)
+    else
+      best_score, best_template, best_tag, best_errors = choose_best_template(forward_seq, forward_quality, config.templates)
     end
-    tag = length(best_tag) > 0 ? join(map(string, best_tag), "") : "NO_TAG"
+    if is_reverse_complement
+      reverse_complement!(sequence.seq)
+      reverse!(sequences.metadata.quality)
+    end
+    tag = length(best_tag) > 0 ? string(best_tag) : "NO_TAG"
     tag = best_errors <= config.max_allowed_errors ? tag : "REJECTS"
     output_function(file_name, best_template, tag, sequence, best_score)
     i += 1
@@ -51,28 +62,33 @@ function process_file(file_name, config, output_function; print_every=0, print_c
   end
 end
 
-function sequence_to_observations(sequence, start_i, end_i, do_reverse)
-  start_i = py_index_to_julia(start_i, length(sequence.seq), true)
-  end_i = py_index_to_julia(end_i, length(sequence.seq), true)
-  observations = Observations.sequence_to_observations(sequence.seq[start_i:end_i], sequence.quality[start_i:end_i])
-  if !do_reverse
-    return observations
+function slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, reverse_complement)
+  if start_i < 0 && r_start_i > 0
+    start_i = length(sequence.seq) - r_start_i
   end
-  tail_start_i, tail_end_i = tail_indices(start_i, end_i, length(sequence.seq))
-  tail_observations = Observations.sequence_to_observations(sequence.seq[tail_start_i:tail_end_i], sequence.quality[tail_start_i:tail_end_i])
-  rc_observations = Observations.reverse_complement(tail_observations)
-  return observations, rc_observations
-end
-
-function py_index_to_julia(py_index, length, bound=false)
-  if py_index < 0
-    py_index += length
+  if end_i < 0 && r_end_i > 0
+    end_i = length(sequence.seq) - r_end_i
   end
-  if bound
-    return min(length, max(1, py_index + 1))
+  start_i = min(length(sequence.seq), max(1, start_i))
+  end_i = min(length(sequence.seq), max(1, end_i))
+  # If the start and end are the other way around, we want our sequence to go backwards
+  reverse_seq = false
+  if start_i > end_i
+    reverse_seq = true
+    start_i, end_i = end_i, start_i
+  end
+  if reverse_complement
+    seq = reverse_complement(sequence.seq)[start_i:end_i]
+    quality = view(sequence.metadata.quality, length(quality)-start_i+1:-1:length(quality)-end_i+1)
   else
-    return py_index + 1
+    seq = sequence.seq[start_i:end_i]
+    quality = view(sequence.metadata.quality, start_i:end_i)
   end
+  if reverse_seq
+    seq = reverse(seq)
+    quality = view(quality, length(quality):-1:1)
+  end
+  return seq, quality
 end
 
 #start_i, end_i -> -end_i, -start_i
@@ -80,28 +96,24 @@ function tail_indices(start_index, end_index, length)
   return (py_index_to_julia(-end_index, length, true), py_index_to_julia(-start_index, length, true))
 end
 
-function best_of_forward_and_reverse(i, templates)
-  if typeof(i) <: Tuple
-    forward_observation, reverse_observation = i
-    forward_best_score, forward_best_template, forward_best_tag, forward_best_errors = best_template(forward_observation, templates)
-    reverse_best_score, reverse_best_template, reverse_best_tag, reverse_best_errors = best_template(reverse_observation, templates)
-    if forward_best_score > reverse_best_score
-      return forward_best_score, forward_best_template, forward_best_tag, forward_best_errors, false
-    else
-      return reverse_best_score, reverse_best_template, reverse_best_tag, reverse_best_errors, true
-    end
-  elseif typeof(i) <: Array{Observation}
-    return best_template(i, templates)..., false
+function best_of_forward_and_reverse(forward_seq, forward_quality, reverse_seq, reverse_quality, templates)
+  forward_observation, reverse_observation = i
+  forward_best_score, forward_best_template, forward_best_tag, forward_best_errors = choose_best_template(forward_seq, forward_quality, templates)
+  reverse_best_score, reverse_best_template, reverse_best_tag, reverse_best_errors = choose_best_template(reverse_seq, reverse_quality, templates)
+  if forward_best_score > reverse_best_score
+    return forward_best_score, forward_best_template, forward_best_tag, forward_best_errors, false
+  else
+    return reverse_best_score, reverse_best_template, reverse_best_tag, reverse_best_errors, true
   end
 end
 
-function best_template(observations, templates)
+function choose_best_template(seq, quality, templates)
   best_score = -Inf
   best_template = nothing
   best_tag = nothing
   best_errors = nothing
   for template in templates
-    score, tag, errors = NeedlemanWunsch.extract_tag(observations, template.reference)
+    score, tag, errors = NeedlemanWunsch.extract_tag(seq, quality, template.reference)
     if score >= best_score
       best_score, best_template, best_tag, best_errors = score, template, tag, errors
     end
@@ -114,10 +126,9 @@ function write_to_file(source_file_name, template, tag, output_sequence, score)
   output_file_name = "output/$(source_file_name)/$(template.name)/$(tag).fastq"
   mkpath("output/$(source_file_name)/$(template.name)")
   fo = open(output_file_name, "a")
-  str_sequence = join(map(string, output_sequence.seq), "")
-  str_quality = join(map(quality_to_char, output_sequence.quality), "")
-  write(fo, "@$(output_sequence.label)($(round(score, 2)))\n$str_sequence\n+\n$str_quality\n")
-  close(fo)
+  writer = FASTQWriter(fo)
+  write(writer, output_sequence)
+  close(writer)
 end
 
 function write_to_dictionary(dictionary, source_file_name, template, tag, output_sequence, score)

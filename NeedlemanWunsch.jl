@@ -1,6 +1,6 @@
 push!(LOAD_PATH, ".")
 module NeedlemanWunsch
-using Nucleotides
+using Bio.Seq
 using Observations
 using States
 export extract_tag
@@ -11,10 +11,15 @@ const SCORE_EPSILON = 1e-10
 #e.g. log(0.25) + log(0.01) + log(0.25) != log(0.25) + log(0.25) + log(0.01)
 
 @enum AlignOp OP_MATCH=1 OP_DEL=2 OP_INS=3
+function extract_tag(record::SeqRecord, states::Array{AbstractState,1})
+  seq = record.seq
+  quality_view = view(record.metadata.quality)
+  extract_tag(seq, quality_view, states)
+end
 
-function extract_tag(observations::Array{Observation,1}, states::Array{AbstractState,1})
+function extract_tag(seq, quality, states::Array{AbstractState,1})
   rows = length(states)
-  cols = length(observations) + 1 #first column is for 'before first symbol' position
+  cols = length(seq) + 1 #first column is for 'before first symbol' position
   scores = zeros(Float64, rows, cols)
   ops = Array{AlignOp}(rows, cols)
   #Left-most column contains all deletions
@@ -37,8 +42,8 @@ function extract_tag(observations::Array{Observation,1}, states::Array{AbstractS
       currentstate = states[r]
       if typeof(currentstate) <: AbstractRepeatingAnyState
         #RepeatingAnyState represents any number of insertions at star_insertion_score or can be freely deleted
-        inscore = scores[r,c-1] + STAR_INSERTION_SCORE
-        delscore = scores[r-1,c]
+        inscore = scores[r, c-1] + STAR_INSERTION_SCORE
+        delscore = scores[r-1, c]
         if delscore > inscore - SCORE_EPSILON
           scores[r,c] = delscore
           ops[r,c] = OP_DEL
@@ -47,7 +52,7 @@ function extract_tag(observations::Array{Observation,1}, states::Array{AbstractS
           ops[r,c] = OP_INS
         end
       else
-        matchscore = scores[r-1,c-1] + log(prob(currentstate.value, observations[c-1].value, observations[c-1].prob))
+        matchscore = scores[r-1,c-1] + log(prob(currentstate.value, seq[c-1], phred_score_to_prob(quality[c-1])))
         inscore = scores[r,c-1] + L_PROBABILITY_OF_INSERTION
         delscore = scores[r-1,c] + L_PROBABILITY_OF_DELETION
         #The order of operations is significant in the case of multiple paths with the same score
@@ -69,21 +74,21 @@ function extract_tag(observations::Array{Observation,1}, states::Array{AbstractS
   end
 
   #Construct tag from score and operation matrices
-  tag = Array{DNASymbol, 1}()
+  tag = DNASequence()
   errors = 0
   r = rows
   c = cols
   while r > 1 || c > 1
     #Debugging print: path and operations
-    #print("r=$r\tc=$c\t$(ops[r,c])$(ops[r,c]!=OP_MATCH ? "\t\t" : "\t")Obs=$(c > 1 ? string(observations[c-1].value) : "0")")
+    #print("r=$r\tc=$c\t$(ops[r,c])$(ops[r,c]!=OP_MATCH ? "\t\t" : "\t")Obs=$(c > 1 ? string(seq[c-1]) : "0")")
     #print("\tState=$(typeof(states[r]) <: AbstractRepeatingAnyState ? "*" : (typeof(states[r]) <: AbstractStartingState ? "0" : string(states[r].value)))")
     #print("\t\tScore=$(round(scores[r,c], 2))\n")
     if ops[r,c] == OP_MATCH
       if typeof(states[r]) <: AbstractBarcodeState
-        insert!(tag, 1, observations[c-1].value)
+        unshift!(tag, seq[c-1])
       end
       if typeof(states[r]) <: AbstractObservableState
-        if !(observations[c-1].value in Nucleotides.constituents(states[r].value))
+        if !(iscompatible(seq[c-1], states[r].value))
           errors = errors + 1
         end
       end
@@ -95,7 +100,7 @@ function extract_tag(observations::Array{Observation,1}, states::Array{AbstractS
       #  be matched to the Ns and the symbols aligned to the left of the Ns will be considered insertions instead (and included in the tag)
       if typeof(states[r]) <: AbstractBarcodeState ||
           (r < rows && typeof(states[r+1]) <: AbstractBarcodeState)
-        insert!(tag, 1, observations[c-1].value)
+        unshift!(tag, seq[c-1])
       end
       if !(typeof(states[r]) <: AbstractRepeatingAnyState)
         errors = errors + 1
