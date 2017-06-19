@@ -21,9 +21,6 @@ function phred_score_to_prob(score)
 end
 
 function fancy_prob(a::DNANucleotide, probA::Float64, b::DNANucleotide, probB::Float64)
-  if a == DNA_N || b == DNA_N
-    return 1.0
-  end
   a_b, a_nb, na_b, na_nb = 0, 0, 0, 0
   A = Bio.Seq.compatbits(a)
   B = Bio.Seq.compatbits(b)
@@ -39,8 +36,14 @@ function fancy_prob(a::DNANucleotide, probA::Float64, b::DNANucleotide, probB::F
 
   norm_a = probA/(a_b + a_nb)
   norm_na = (1 - probA)/(na_b + na_nb)
+  if !isfinite(norm_na)
+    norm_na = 0.0
+  end
   norm_b = probB/(a_b + na_b)
   norm_nb = (1 - probB)/(a_nb + na_nb)
+  if !isfinite(norm_nb)
+    norm_nb = 0.0
+  end
 
   return a_b * norm_a * norm_b + a_nb * norm_a * norm_nb +
          na_b * norm_na * norm_b + na_nb * norm_na * norm_nb
