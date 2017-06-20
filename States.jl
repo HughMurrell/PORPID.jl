@@ -1,7 +1,7 @@
 push!(LOAD_PATH, ".")
 
 module States
-using Nucleotides
+using Bio.Seq
 using Observations
 
 export AbstractState, AbstractStartingState, StartingState
@@ -19,17 +19,17 @@ type StartingState <: AbstractStartingState
 end
 
 type RepeatingAnyState <: AbstractRepeatingAnyState
-  value::DNASymbol
+  value::DNANucleotide
 end
 
-RepeatingAnyState() = RepeatingAnyState(Nucleotides.DNA_N)
+RepeatingAnyState() = RepeatingAnyState(DNA_N)
 
 type ObservableState <: AbstractObservableState
-  value::DNASymbol
+  value::DNANucleotide
 end
 
 type BarcodeState <: AbstractBarcodeState
-  value::DNASymbol
+  value::DNANucleotide
 end
 
 function string_to_state_array(string_sequence::String)
@@ -39,9 +39,9 @@ function string_to_state_array(string_sequence::String)
     if char == '*'
       state = RepeatingAnyState()
     elseif islower(char)
-      state = BarcodeState(convert(DNASymbol, char))
+      state = BarcodeState(convert(DNANucleotide, char))
     else
-      state = ObservableState(convert(DNASymbol, char))
+      state = ObservableState(convert(DNANucleotide, char))
     end
     push!(states, state)
   end
