@@ -62,7 +62,7 @@ function process_file(file_name, config, output_function; print_every=0, print_c
   end
 end
 
-function slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, reverse_complement)
+function slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, do_reverse_complement)
   if start_i < 0 && r_start_i > 0
     start_i = length(sequence.seq) - r_start_i
   end
@@ -77,7 +77,7 @@ function slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, reverse_co
     reverse_seq = true
     start_i, end_i = end_i, start_i
   end
-  if reverse_complement
+  if do_reverse_complement
     seq = reverse_complement(sequence.seq)[start_i:end_i]
     quality = view(sequence.metadata.quality, length(quality)-start_i+1:-1:length(quality)-end_i+1)
   else
