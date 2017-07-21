@@ -50,7 +50,7 @@ function process_file(file_name, config, output_function; print_every=0, print_c
     end
     if is_reverse_complement
       reverse_complement!(sequence.seq)
-      reverse!(sequences.metadata.quality)
+      reverse!(sequence.metadata.quality)
     end
     tag = length(best_tag) > 0 ? string(best_tag) : "NO_TAG"
     tag = best_errors <= config.max_allowed_errors ? tag : "REJECTS"
@@ -79,7 +79,7 @@ function slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, do_reverse
   end
   if do_reverse_complement
     seq = reverse_complement(sequence.seq)[start_i:end_i]
-    quality = view(sequence.metadata.quality, length(quality)-start_i+1:-1:length(quality)-end_i+1)
+    quality = view(sequence.metadata.quality, length(sequence.metadata.quality)-start_i+1:-1:length(sequence.metadata.quality)-end_i+1)
   else
     seq = sequence.seq[start_i:end_i]
     quality = view(sequence.metadata.quality, start_i:end_i)
@@ -97,7 +97,6 @@ function tail_indices(start_index, end_index, length)
 end
 
 function best_of_forward_and_reverse(forward_seq, forward_quality, reverse_seq, reverse_quality, templates)
-  forward_observation, reverse_observation = i
   forward_best_score, forward_best_template, forward_best_tag, forward_best_errors = choose_best_template(forward_seq, forward_quality, templates)
   reverse_best_score, reverse_best_template, reverse_best_tag, reverse_best_errors = choose_best_template(reverse_seq, reverse_quality, templates)
   if forward_best_score > reverse_best_score
