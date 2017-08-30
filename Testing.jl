@@ -1,10 +1,10 @@
 push!(LOAD_PATH, ".")
 module Testing
 
-using Nucleotides
+using BioSequences
 using States
 
-const SYMBOLS = Array{Nucleotides.DNASymbol, 1}([Nucleotides.DNA_A, Nucleotides.DNA_C, Nucleotides.DNA_G, Nucleotides.DNA_T])
+const SYMBOLS = Array{DNA, 1}([DNA_A, DNA_C, DNA_G, DNA_T])
 
 const TEMPLATES = ["AAGGnnnnnnnnnnTTAAGGAATCGACG", "ACACAGTGTACAGTCTGACGTTGCnnnnnnnnCCACTTGCCACCCATBTTATAGCA"]
 const NUM_SEQUENCES = 300
@@ -16,8 +16,8 @@ const P_INSERT = 0.012
 const P_DELETE = 0.012
 const P_MUTATE = 0.007
 
-function copy_with_errors(sequence::Array{Nucleotides.DNASymbol, 1}, template::Array{States.AbstractState}, barcode_indices::Set{Int64})
-  copy = Array{Nucleotides.DNASymbol, 1}()
+function copy_with_errors(sequence::Array{DNA, 1}, template::Array{States.AbstractState}, barcode_indices::Set{Int64})
+  copy = Array{DNA, 1}()
   barcode_errors = 0
   primer_errors = 0
   i = 1
@@ -90,14 +90,14 @@ function generate_test_sequences()
   end
 
   #each template has a separate array of primers
-  primers = Array{Array{Array{Nucleotides.DNASymbol, 1}, 1}, 1}()
+  primers = Array{Array{Array{DNA, 1}, 1}, 1}()
   for i in 1:length(plexes)
-    push!(primers, Array{Array{Nucleotides.DNASymbol, 1}, 1}())
+    push!(primers, Array{Array{DNA, 1}, 1}())
   end
   for p in 1:NUM_IDS
     template_num = rand(1:length(plexes))
     template = plexes[template_num]
-    primer = Array{Nucleotides.DNASymbol, 1}()
+    primer = Array{DNA, 1}()
     for state in template
       if typeof(state) <: AbstractBarcodeState
         push!(primer, rand(SYMBOLS))
@@ -109,9 +109,9 @@ function generate_test_sequences()
   end
 
   #each template has a separate 'tail', i.e. the sequence following the primer
-  tails = Array{Array{Nucleotides.DNASymbol, 1}, 1}()
+  tails = Array{Array{DNA, 1}, 1}()
   for template in plexes
-    tail = Array{Nucleotides.DNASymbol, 1}()
+    tail = Array{DNA, 1}()
     for c in 1:(SEQUENCE_LENGTH - length(template))
       push!(tail, rand(SYMBOLS))
     end

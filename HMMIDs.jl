@@ -4,7 +4,7 @@ import JSON
 
 using NeedlemanWunsch
 using States
-using Nucleotides
+using BioSequences
 using Observations
 using ProfileHMMModel
 
@@ -84,23 +84,24 @@ function process(json_file)
 
     #template name => (tag/cluster => sequences with scores)
     #i.e. folder => (file name => file contents)
-    template_to_cluster_map = Dict{String, Dict{String, Array{Tuple{Nucleotides.Sequence, Float64}, 1}}}()
+    template_to_cluster_map = Dict{String, Dict{String, Array{Tuple{DNASequence, Float64}, 1}}}()
     for template in params["templates"]
-      template_to_cluster_map[template["name"]] = Dict{String, Array{Tuple{Nucleotides.Sequence, Float64}, 1}}()
+      template_to_cluster_map[template["name"]] = Dict{String, Array{Tuple{DNASequence, Float64}, 1}}()
     end
 
-    for sequence in FastqIterator(file_name)
+    for sequence in open(FASTQ.Reader, file_name)
+      seq = FASTQ.sequence(sequence)
       printif(params, "print_sequence", "  $(sequence.label)\n")
-      start_i = py_index_to_julia(get(params, "start_inclusive", 0), length(sequence.seq), true)
-      end_i = py_index_to_julia(get(params, "end_inclusive", -1), length(sequence.seq), true)
-      printif(params, "print_subsequence", "$(join(map(string, sequence.seq[start_i:end_i]), ""))\n")
-      observations = sequence_to_observations(sequence.seq[start_i:end_i], sequence.quality[start_i:end_i])
+      start_i = py_index_to_julia(get(params, "start_inclusive", 0), length(seq), true)
+      end_i = py_index_to_julia(get(params, "end_inclusive", -1), length(seq), true)
+      printif(params, "print_subsequence", "$(String(seq[start_i:end_i]))\n")
+      observations = sequence_to_observations(seq[start_i:end_i], FASTQ.quality(sequence)[start_i:end_i])
 
       rc_observations = Union{}
       if do_reverse_complement
-        tail_start_i, tail_end_i = tail_indices(start_i, end_i, length(sequence.seq))
-        printif(params, "print_subsequence", "$(join(map(string, sequence.seq[tail_start_i:tail_end_i]), ""))\n")
-        tail_observations = sequence_to_observations(sequence.seq[tail_start_i:tail_end_i], sequence.quality[tail_start_i:tail_end_i])
+        tail_start_i, tail_end_i = tail_indices(start_i, end_i, length(seq))
+        printif(params, "print_subsequence","$(String(seq[tail_start_i:tail_end_i]))\n")
+        tail_observations = sequence_to_observations(seq[tail_start_i:tail_end_i], FASTQ.quality(sequence)[tail_start_i:tail_end_i])
         rc_observations = Observations.reverse_complement(tail_observations)
       end
 
@@ -138,9 +139,9 @@ function process(json_file)
       str_tag = length(best_tag) > 0 ? join(map(string, best_tag), "") : "NO_TAG"
       cluster_name = best_errors <= max_allowed_errors ? str_tag : "REJECTS"
       cluster_to_sequences = template_to_cluster_map[best_template_name]
-      sequence_and_score = (is_best_reversed ? reverse_complement(sequence) : sequence, best_template_score)
+      sequence_and_score = (is_best_reversed ? reverse_complement(seq) : seq, best_template_score)
       if !haskey(cluster_to_sequences, cluster_name)
-        cluster_to_sequences[cluster_name] = Array{Tuple{Nucleotides.Sequence, Float64}, 1}()
+        cluster_to_sequences[cluster_name] = Array{Tuple{DNASequence, Float64}, 1}()
       end
       push!(cluster_to_sequences[cluster_name], sequence_and_score)
 
@@ -174,8 +175,8 @@ function process(json_file)
           open("$OUTPUT_FOLDER/$folder_name/$template_name/$cluster.fastq", "w") do f
             sequence_and_score_array = cluster_to_sequences[cluster]
             for (sequence, score) in sequence_and_score_array
-              str_sequence = join(map(string, sequence.seq), "")
-              str_quality = join(map(quality_to_char, sequence.quality), "")
+              str_sequence = FASTQ.sequence(String, sequence)
+              str_quality = join(map(quality_to_char, FASTQ.quality(sequence)), "")
               write(f, "@$(sequence.label)($(round(score, 2)))\n$str_sequence\n+\n$str_quality\n")
             end #for each sequence
           end #open file
