@@ -12,25 +12,25 @@ const DEFAULT_MAX_ERRORS = 2
 const DEFAULT_MAX_FILE_DESCRIPTORS = 1024
 const OUTPUT_FOLDER = "output"
 
-function py_index_to_julia(py_index, length, bound=false)
+function py_index_to_julia(py_index, len, bound=false)
   if py_index < 0
-    py_index += length
+    py_index += len
   end
   if bound
-    return min(length, max(1, py_index + 1))
+    return min(len, max(1, py_index + 1))
   else
     return py_index + 1
   end
 end
 
 #start_i, end_i -> -end_i, -start_i
-function tail_indices(start_index, end_index, length)
-  return (py_index_to_julia(-end_index, length, true), py_index_to_julia(-start_index, length, true))
+function tail_indices(start_index, end_index, len)
+  return (py_index_to_julia(-end_index, len, true), py_index_to_julia(-start_index, len, true))
 end
 
-function printif(dict, key, string)
+function printif(dict, key, str)
   if get(dict, key, false)
-    print(string)
+    print(str)
   end
 end
 
