@@ -66,11 +66,12 @@ end
 
 function slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, do_reverse_complement)
   if start_i < 0 && r_start_i > 0
-    start_i = length(FASTQ.sequence(sequence)) - r_start_i
+    start_i = length(FASTQ.sequence(sequence)) - r_start_i + 1
   end
   if end_i < 0 && r_end_i > 0
-    end_i = length(FASTQ.sequence(sequence)) - r_end_i
+    end_i = length(FASTQ.sequence(sequence)) - r_end_i + 1
   end
+
   start_i = min(length(FASTQ.sequence(sequence)), max(1, start_i))
   end_i = min(length(FASTQ.sequence(sequence)), max(1, end_i))
   # If the start and end are the other way around, we want our sequence to go backwards
