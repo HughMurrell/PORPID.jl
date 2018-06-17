@@ -37,10 +37,10 @@ function process_file(file_name, config, output_function; print_every=0, print_c
   for sequence in iterator
     if typeof(sequence) <: FASTA.Record
       # Could do this is the slice_sequence method, but if we want to print out the sequences, it's best to have it here
-      sequence = FASTQ.Record(FASTQ.identifier(sequence),
-                              FASTQ.description(sequence), 
-                              FASTQ.sequence(sequence), 
-                              fill(Int8(DEFAULT_QUALITY), length(FASTQ.sequence(sequence))))
+      sequence = FASTQ.Record(FASTA.identifier(sequence),
+                              FASTA.description(sequence),
+                              FASTA.sequence(sequence),
+                              fill(Int8(DEFAULT_QUALITY), length(FASTA.sequence(sequence))))
     end
     forward_seq, forward_quality = slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, false)
     is_reverse_complement = false
