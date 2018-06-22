@@ -5,8 +5,7 @@ export process, process_file, sequence_to_observation, best_of_forward_and_rever
 using NeedlemanWunsch
 using HMMIDConfig
 using States
-using Bio
-using Bio.Seq
+using BioSequences
 using Observations
 
 const DEFAULT_MAX_ERRORS = 2
@@ -30,15 +29,18 @@ function process_file(file_name, config, output_function; print_every=0, print_c
   r_end_i = config.reverse_end_inclusive
   try_reverse_complement = config.try_reverse_complement
   if config.filetype == fastq
-    iterator = open(FASTQReader, file_name)
+    iterator = open(FASTQ.Reader, file_name)
   else
-    iterator = open(FASTAReader, file_name)
+    iterator = open(FASTA.Reader, file_name)
   end
   i = 0
   for sequence in iterator
-    if typeof(sequence.metadata) <: Bio.Seq.FASTAMetadata
+    if typeof(sequence) <: FASTA.Record
       # Could do this is the slice_sequence method, but if we want to print out the sequences, it's best to have it here
-      sequence = Bio.Seq.SeqRecord(sequence.name, sequence.seq, Bio.Seq.FASTQMetadata(sequence.metadata.description, fill(Int8(DEFAULT_QUALITY), length(sequence.seq))))
+      sequence = FASTQ.Record(FASTA.identifier(sequence),
+                              FASTA.description(sequence),
+                              FASTA.sequence(sequence),
+                              fill(Int8(DEFAULT_QUALITY), length(FASTA.sequence(sequence))))
     end
     forward_seq, forward_quality = slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, false)
     is_reverse_complement = false
@@ -49,8 +51,8 @@ function process_file(file_name, config, output_function; print_every=0, print_c
       best_score, best_template, best_tag, best_errors = choose_best_template(forward_seq, forward_quality, config.templates)
     end
     if is_reverse_complement
-      reverse_complement!(sequence.seq)
-      reverse!(sequence.metadata.quality)
+      sequence.data[sequence.sequence] = Vector{UInt8}(String(reverse_complement(FASTQ.sequence(sequence))))
+      sequence.data[sequence.quality] = reverse(sequence.data[sequence.quality])
     end
     tag = length(best_tag) > 0 ? string(best_tag) : "NO_TAG"
     tag = best_errors <= config.max_allowed_errors ? tag : "REJECTS"
@@ -64,13 +66,14 @@ end
 
 function slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, do_reverse_complement)
   if start_i < 0 && r_start_i > 0
-    start_i = length(sequence.seq) - r_start_i
+    start_i = length(FASTQ.sequence(sequence)) - r_start_i + 1
   end
   if end_i < 0 && r_end_i > 0
-    end_i = length(sequence.seq) - r_end_i
+    end_i = length(FASTQ.sequence(sequence)) - r_end_i + 1
   end
-  start_i = min(length(sequence.seq), max(1, start_i))
-  end_i = min(length(sequence.seq), max(1, end_i))
+
+  start_i = min(length(FASTQ.sequence(sequence)), max(1, start_i))
+  end_i = min(length(FASTQ.sequence(sequence)), max(1, end_i))
   # If the start and end are the other way around, we want our sequence to go backwards
   reverse_seq = false
   if start_i > end_i
@@ -78,11 +81,11 @@ function slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, do_reverse
     start_i, end_i = end_i, start_i
   end
   if do_reverse_complement
-    seq = reverse_complement(sequence.seq)[start_i:end_i]
-    quality = view(sequence.metadata.quality, length(sequence.metadata.quality)-start_i+1:-1:length(sequence.metadata.quality)-end_i+1)
+    seq = reverse_complement(FASTQ.sequence(sequence))[start_i:end_i]
+    quality = view(sequence.quality, length(sequence.quality)-start_i+1:-1:length(sequence.quality)-end_i+1)
   else
-    seq = sequence.seq[start_i:end_i]
-    quality = view(sequence.metadata.quality, start_i:end_i)
+    seq = FASTQ.sequence(sequence)[start_i:end_i]
+    quality = view(FASTQ.quality(sequence), start_i:end_i)
   end
   if reverse_seq
     seq = reverse(seq)
@@ -125,7 +128,7 @@ function write_to_file(source_file_name, template, tag, output_sequence, score)
   output_file_name = "output/$(source_file_name)/$(template.name)/$(tag).fastq"
   mkpath("output/$(source_file_name)/$(template.name)")
   fo = open(output_file_name, "a")
-  writer = FASTQWriter(fo)
+  writer = FASTQ.Writer(fo)
   write(writer, output_sequence)
   close(writer)
 end

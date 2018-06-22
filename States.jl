@@ -1,7 +1,7 @@
 push!(LOAD_PATH, ".")
 
 module States
-using Bio.Seq
+using BioSequences
 using Observations
 
 export AbstractState, AbstractStartingState, StartingState
@@ -9,27 +9,27 @@ export AbstractRepeatingAnyState, RepeatingAnyState, AbstractObservableState
 export ObservableState, AbstractBarcodeState, BarcodeState
 export string_to_state_array
 
-abstract AbstractState
-abstract AbstractStartingState <: AbstractState
-abstract AbstractRepeatingAnyState <: AbstractState
-abstract AbstractObservableState <: AbstractState
-abstract AbstractBarcodeState <: AbstractObservableState
+abstract type AbstractState end
+abstract type AbstractStartingState <: AbstractState end
+abstract type AbstractRepeatingAnyState <: AbstractState end
+abstract type AbstractObservableState <: AbstractState end
+abstract type AbstractBarcodeState <: AbstractObservableState end
 
-type StartingState <: AbstractStartingState
+struct StartingState <: AbstractStartingState
 end
 
-type RepeatingAnyState <: AbstractRepeatingAnyState
-  value::DNANucleotide
+struct RepeatingAnyState <: AbstractRepeatingAnyState
+  value::DNA
 end
 
 RepeatingAnyState() = RepeatingAnyState(DNA_N)
 
-type ObservableState <: AbstractObservableState
-  value::DNANucleotide
+struct ObservableState <: AbstractObservableState
+  value::DNA
 end
 
-type BarcodeState <: AbstractBarcodeState
-  value::DNANucleotide
+struct BarcodeState <: AbstractBarcodeState
+  value::DNA
 end
 
 function string_to_state_array(string_sequence::String)
@@ -39,9 +39,9 @@ function string_to_state_array(string_sequence::String)
     if char == '*'
       state = RepeatingAnyState()
     elseif islower(char)
-      state = BarcodeState(convert(DNANucleotide, char))
+      state = BarcodeState(convert(DNA, char))
     else
-      state = ObservableState(convert(DNANucleotide, char))
+      state = ObservableState(convert(DNA, char))
     end
     push!(states, state)
   end

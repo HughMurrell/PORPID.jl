@@ -1,8 +1,7 @@
 push!(LOAD_PATH, ".")
 
 module Observations
-using Bio
-using Bio.Seq
+using BioSequences
 export Observation, sequence_to_observations, phred_score_to_prob, prob
 export PROBABILITY_OF_INSERTION, PROBABILITY_OF_DELETION, L_PROBABILITY_OF_INSERTION, L_PROBABILITY_OF_DELETION
 export L_PROBABILITY_PER_EXTRA_BASE, L_PROBABILITY_OF_NORMAL_TRANSITION
@@ -20,10 +19,10 @@ function phred_score_to_prob(score)
   return 1 - prob_wrong
 end
 
-function fancy_prob(a::DNANucleotide, probA::Float64, b::DNANucleotide, probB::Float64)
+function fancy_prob(a::DNA, probA::Float64, b::DNA, probB::Float64)
   a_b, a_nb, na_b, na_nb = 0, 0, 0, 0
-  A = Bio.Seq.compatbits(a)
-  B = Bio.Seq.compatbits(b)
+  A = UInt8(a)
+  B = UInt8(b)
 
   mask = 0x01
   while mask <= 0x08
@@ -49,11 +48,11 @@ function fancy_prob(a::DNANucleotide, probA::Float64, b::DNANucleotide, probB::F
          na_b * norm_na * norm_b + na_nb * norm_na * norm_nb
 end
 
-function prob(expected::DNANucleotide, prob_expected::Float64, observed::DNANucleotide, prob_observed::Float64)
+function prob(expected::DNA, prob_expected::Float64, observed::DNA, prob_observed::Float64)
   return fancy_prob(expected, prob_expected, observed, prob_observed)
 end
 
-function prob(expected::DNANucleotide, observed::DNANucleotide, prob_observed::Float64)
+function prob(expected::DNA, observed::DNA, prob_observed::Float64)
   return prob(expected, 1.0, observed, prob_observed)
 end
 
