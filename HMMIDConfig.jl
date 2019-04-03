@@ -5,9 +5,9 @@ import JSON
 
 using States
 
-type Template
+struct Template
   name::String
-  reference::Array{AbstractState,1}
+  reference::Vector{AbstractState}
 end
 
 Template(name::String, reference::String) =
@@ -19,8 +19,8 @@ function Base.convert(::Type{FileType}, str_repr::String)
   return (lowercase(str_repr) == "fasta") ? fasta : fastq
 end
 
-type Configuration
-  files::Array{String,1}
+mutable struct Configuration
+  files::Vector{String}
   filetype::FileType
   start_inclusive::Integer
   reverse_start_inclusive::Integer
@@ -28,10 +28,10 @@ type Configuration
   reverse_end_inclusive::Integer
   max_allowed_errors::Integer
   try_reverse_complement::Bool
-  templates::Array{Template,1}
+  templates::Vector{Template}
 end
 
-Configuration() = Configuration(Array{String}(0), fastq, -1, -1, -1, -1, 4, false, Array{Template}(0))
+Configuration() = Configuration(Vector{String}(undef, 0), fastq, -1, -1, -1, -1, 4, false, Vector{Template}(undef, 0))
 
 function read_from_json(json_file_location)
   config = Configuration()

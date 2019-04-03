@@ -2,7 +2,7 @@ push!(LOAD_PATH, ".")
 
 module Observations
 using BioSequences
-export Observation, sequence_to_observations, phred_score_to_prob, prob
+export Observation, phred_score_to_prob, prob
 export PROBABILITY_OF_INSERTION, PROBABILITY_OF_DELETION, L_PROBABILITY_OF_INSERTION, L_PROBABILITY_OF_DELETION
 export L_PROBABILITY_PER_EXTRA_BASE, L_PROBABILITY_OF_NORMAL_TRANSITION
 
@@ -21,8 +21,8 @@ end
 
 function fancy_prob(a::DNA, probA::Float64, b::DNA, probB::Float64)
   a_b, a_nb, na_b, na_nb = 0, 0, 0, 0
-  A = UInt8(a)
-  B = UInt8(b)
+  A = UInt8(convert(UInt8, a))
+  B = UInt8(convert(UInt8, b))
 
   mask = 0x01
   while mask <= 0x08

@@ -6,7 +6,7 @@ using NeedlemanWunsch
 using States
 using BioSequences
 using Observations
-using ProfileHMMModel
+#using ProfileHMMModel
 
 const DEFAULT_MAX_ERRORS = 2
 const DEFAULT_MAX_FILE_DESCRIPTORS = 1024
@@ -46,7 +46,8 @@ function process(json_file)
     options = params["options"]
     if haskey(options, "algorithm")
       if lowercase(options["algorithm"]) == "profile"
-        model = ProfileHMMModel
+        error("ProfileHMMModel hasn't been ported to Julia 1.0 yet")
+        #model = ProfileHMMModel
       end
     end
     if haskey(options, "do_reverse_complement")
@@ -91,7 +92,7 @@ function process(json_file)
 
     for sequence in open(FASTQ.Reader, file_name)
       seq = FASTQ.sequence(sequence)
-      printif(params, "print_sequence", "  $(sequence.label)\n")
+      printif(params, "print_sequence", "  $(FASTQ.identifier(sequence))\n")
       start_i = py_index_to_julia(get(params, "start_inclusive", 0), length(seq), true)
       end_i = py_index_to_julia(get(params, "end_inclusive", -1), length(seq), true)
       printif(params, "print_subsequence", "$(String(seq[start_i:end_i]))\n")

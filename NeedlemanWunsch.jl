@@ -11,17 +11,17 @@ const SCORE_EPSILON = 1e-10
 #e.g. log(0.25) + log(0.01) + log(0.25) != log(0.25) + log(0.25) + log(0.01)
 
 @enum AlignOp OP_MATCH=1 OP_DEL=2 OP_INS=3
-function extract_tag(record::FASTQ.Record, states::Array{AbstractState,1})
+function extract_tag(record::FASTQ.Record, states::Vector{AbstractState})
   seq = FASTQ.sequence(sequence)
   quality_view = view(record.quality)
   extract_tag(seq, quality_view, states)
 end
 
-function extract_tag(seq, quality, states::Array{AbstractState,1})
+function extract_tag(seq::BioSequence{DNAAlphabet{4}}, quality, states::Vector{AbstractState})
   rows = length(states)
   cols = length(seq) + 1 #first column is for 'before first symbol' position
   scores = zeros(Float64, rows, cols)
-  ops = Array{AlignOp}(rows, cols)
+  ops = Array{AlignOp}(undef, rows, cols)
   #Left-most column contains all deletions
   for r = 2:rows
     if typeof(states[r]) <: AbstractRepeatingAnyState
@@ -52,7 +52,7 @@ function extract_tag(seq, quality, states::Array{AbstractState,1})
           ops[r,c] = OP_INS
         end
       else
-        matchscore = scores[r-1,c-1] + log(prob(currentstate.value, DNA(seq[c-1]), phred_score_to_prob(quality[c-1])))
+        matchscore = scores[r-1,c-1] + log(prob(currentstate.value, seq[c-1], phred_score_to_prob(quality[c-1])))
         inscore = scores[r,c-1] + L_PROBABILITY_OF_INSERTION
         delscore = scores[r-1,c] + L_PROBABILITY_OF_DELETION
         #The order of operations is significant in the case of multiple paths with the same score
@@ -85,10 +85,10 @@ function extract_tag(seq, quality, states::Array{AbstractState,1})
     #print("\t\tScore=$(round(scores[r,c], 2))\n")
     if ops[r,c] == OP_MATCH
       if typeof(states[r]) <: AbstractBarcodeState
-        unshift!(tag, Char(seq[c-1]))
+        pushfirst!(tag, Char(seq[c-1]))
       end
       if typeof(states[r]) <: AbstractObservableState
-        if !(iscompatible(DNA(seq[c-1]), states[r].value))
+        if !(iscompatible(seq[c-1], states[r].value))
           errors = errors + 1
         end
       end
@@ -100,7 +100,7 @@ function extract_tag(seq, quality, states::Array{AbstractState,1})
       #  be matched to the Ns and the symbols aligned to the left of the Ns will be considered insertions instead (and included in the tag)
       if typeof(states[r]) <: AbstractBarcodeState ||
           (r < rows && typeof(states[r+1]) <: AbstractBarcodeState)
-        unshift!(tag, Char(seq[c-1]))
+        pushfirst!(tag, Char(seq[c-1]))
       end
       if !(typeof(states[r]) <: AbstractRepeatingAnyState)
         errors = errors + 1

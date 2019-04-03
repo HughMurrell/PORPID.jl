@@ -6,7 +6,7 @@ using CustomLDA
 
 const REJECT_TAG = "REJECTS"
 
-type ErrorModel
+struct ErrorModel
   error_rate::Float64
   deletion_ratio::Float64
   insertion_ratio::Float64
@@ -46,7 +46,7 @@ end
 
 function index_counts(counts, tag_to_index)
   tags = keys(counts)
-  indexed_counts = Array{Int32}(length(tags))
+  indexed_counts = Vector{Int32}(undef, length(tags))
   for tag in tags
     indexed_counts[tag_to_index[tag]] = counts[tag]
   end
@@ -107,8 +107,8 @@ function tag_counts(path)
 end
 
 function prob_observed_tags_given_reals(tag_to_index::Dict{String, Int32}, error_model::ErrorModel, recurse=0)
-  prob_observed_tags_given_reals = Array{Array{Tuple{Int32, Float32}}}(length(tag_to_index))
-  global memoisation = Dict{Tuple{String, Int64}, Array{Tuple{Int32,Float32}}}()
+  prob_observed_tags_given_reals = Vector{Vector{Tuple{Int32, Float32}}}(undef, length(tag_to_index))
+  global memoisation = Dict{Tuple{String, Int64}, Vector{Tuple{Int32,Float32}}}()
   for observed_tag in keys(tag_to_index)
     observed_index = tag_to_index[observed_tag]
     prob_observed_tags_given_reals[observed_index] = prob_observed_tag_given_reals(observed_tag, tag_to_index, error_model, recurse)
@@ -138,7 +138,7 @@ function prob_observed_tag_given_reals(observed_tag::String, tag_to_index::Dict{
     prob_given_reals_dict[tag_to_index[observed_tag]] = (1 - error_model.error_rate) ^ length(observed_tag)
   end
   # Collate dictionary into tuple array
-  tuple_array = Array{Tuple{Int32, Float32}}(length(prob_given_reals_dict))
+  tuple_array = Vector{Tuple{Int32, Float32}}(undef, length(prob_given_reals_dict))
   i = 1
   for (index, prob) in prob_given_reals_dict
     tuple_array[i] = (index, prob)
@@ -154,7 +154,7 @@ end
 
 #tag -> insertion -> neighbours
 function insertion_neighbours(tag::String, tag_to_index::Dict{String, Int32}, error_model, recurse)
-  neighbours = Array{Tuple{Int32, Float32}}(0)
+  neighbours = Vector{Tuple{Int32, Float32}}(undef, 0)
   word = ""
   for c in "ACTG"
     for i in 1:length(tag) + 1
@@ -171,7 +171,7 @@ end
 
 #tag -> deletion -> neighbours
 function deletion_neighbours(tag::String, tag_to_index::Dict{String, Int32}, error_model, recurse)
-  neighbours = Array{Tuple{Int32, Float32}}(0)
+  neighbours = Vector{Tuple{Int32, Float32}}(undef, 0)
   word = ""
   for i in 1:length(tag)
     word = without(tag, i)
@@ -186,7 +186,7 @@ end
 
 #tag -> mutation -> neighbours
 function mutation_neighbours(tag::String, tag_to_index::Dict{String, Int32}, error_model, recurse)
-  neighbours = Array{Tuple{Int32, Float32}}(0)
+  neighbours = Vector{Tuple{Int32, Float32}}(undef, 0)
   word = ""
   for c in "ACTG"
     for i in 1:length(tag)

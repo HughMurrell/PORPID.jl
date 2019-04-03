@@ -38,7 +38,7 @@ function string_to_state_array(string_sequence::String)
   for char in string_sequence
     if char == '*'
       state = RepeatingAnyState()
-    elseif islower(char)
+    elseif islowercase(char)
       state = BarcodeState(convert(DNA, char))
     else
       state = ObservableState(convert(DNA, char))
