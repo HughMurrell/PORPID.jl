@@ -21,8 +21,8 @@ end
 
 function fancy_prob(a::DNA, probA::Float64, b::DNA, probB::Float64)
   a_b, a_nb, na_b, na_nb = 0, 0, 0, 0
-  A = UInt8(convert(UInt8, a))
-  B = UInt8(convert(UInt8, b))
+  A = convert(UInt8, a)
+  B = convert(UInt8, b)
 
   mask = 0x01
   while mask <= 0x08
