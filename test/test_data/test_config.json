@@ -1,0 +1,25 @@
+{
+  "options": {
+    "do_reverse_complement": true,
+    "algorithm": "needlemanwunsch",
+    "output_to_file": true
+  },
+  "files": ["test_data/basic.fastq", "test_data/more_than_basic.fastq"],
+  "print_filename": true,
+  "print_sequence": false,
+  "name": "Test Config",
+  "start_inclusive": 1,
+  "end_inclusive": 39,
+  "print_subsequence": false,
+  "print_all_scores": true,
+  "print_plex": true,
+  "print_tag": true,
+  "print_score": true,
+  "print_error_count": true,
+  "print_is_reverse": false,
+  "max_allowed_errors": 3,
+  "templates": [
+    {"name":"GATTACA", "reference":"GATTACAGATTACAnnnnnnGATTACA*"},
+    {"name":"TAGACAT", "reference":"TAGACATTAGACATnnnnnnTAGACATATAT*"}
+  ]
+}
