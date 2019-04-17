@@ -94,11 +94,6 @@ function slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, do_reverse
   return seq, quality
 end
 
-#start_i, end_i -> -end_i, -start_i
-function tail_indices(start_index, end_index, length)
-  return (py_index_to_julia(-end_index, length, true), py_index_to_julia(-start_index, length, true))
-end
-
 function best_of_forward_and_reverse(forward_seq, forward_quality, reverse_seq, reverse_quality, templates)
   forward_best_score, forward_best_template, forward_best_tag, forward_best_errors = choose_best_template(forward_seq, forward_quality, templates)
   reverse_best_score, reverse_best_template, reverse_best_tag, reverse_best_errors = choose_best_template(reverse_seq, reverse_quality, templates)
