@@ -122,15 +122,15 @@ function prob_observed_tag_given_reals(observed_tag::String, tag_to_index::Dict{
     return memoisation[(observed_tag, recurse)]
   end
   prob_given_reals_dict = Dict{Int32, Float32}()
-  ins_nbrs = insertion_neighbours(observed_tag, tag_to_index, error_model, recurse)
+  ins_nbrs = insertion_neighbors(observed_tag, tag_to_index, error_model, recurse)
   for (index, prob) in ins_nbrs
     prob_given_reals_dict[index] = get(prob_given_reals_dict, index, 0.0) + error_model.error_rate * error_model.insertion_ratio * (1/4) * prob
   end
-  del_nbrs = deletion_neighbours(observed_tag, tag_to_index, error_model, recurse)
+  del_nbrs = deletion_neighbors(observed_tag, tag_to_index, error_model, recurse)
   for (index, prob) in del_nbrs
     prob_given_reals_dict[index] = get(prob_given_reals_dict, index, 0.0) + error_model.error_rate * error_model.deletion_ratio * prob
   end
-  mut_nbrs = mutation_neighbours(observed_tag, tag_to_index, error_model, recurse)
+  mut_nbrs = mutation_neighbors(observed_tag, tag_to_index, error_model, recurse)
   for (index, prob) in mut_nbrs
     prob_given_reals_dict[index] = get(prob_given_reals_dict, index, 0.0) + error_model.error_rate * error_model.mutation_ratio * (1/3) * prob
   end
@@ -148,57 +148,57 @@ function prob_observed_tag_given_reals(observed_tag::String, tag_to_index::Dict{
   return tuple_array
 end
 
-#The three neighbour functions below can have duplicate tags in the returned lists
+#The three neighbor functions below can have duplicate tags in the returned lists
 #This is used to accumulate probabilities when there are multiple error paths between two tags
 # e.g. there are three different deletions that turn AAA into AA
 
-#tag -> insertion -> neighbours
-function insertion_neighbours(tag::String, tag_to_index::Dict{String, Int32}, error_model, recurse)
-  neighbours = Vector{Tuple{Int32, Float32}}(undef, 0)
+#tag -> insertion -> neighbors
+function insertion_neighbors(tag::String, tag_to_index::Dict{String, Int32}, error_model, recurse)
+  neighbors = Vector{Tuple{Int32, Float32}}(undef, 0)
   word = ""
   for c in "ACTG"
     for i in 1:length(tag) + 1
       word = insert_at(tag, i, c)
       if recurse > 0
-        append!(neighbours, prob_observed_tag_given_reals(word, tag_to_index, error_model, recurse-1))
+        append!(neighbors, prob_observed_tag_given_reals(word, tag_to_index, error_model, recurse-1))
       elseif haskey(tag_to_index, word)
-        push!(neighbours, (tag_to_index[word], 1.0))
+        push!(neighbors, (tag_to_index[word], 1.0))
       end
     end
   end
-  return neighbours
+  return neighbors
 end
 
-#tag -> deletion -> neighbours
-function deletion_neighbours(tag::String, tag_to_index::Dict{String, Int32}, error_model, recurse)
-  neighbours = Vector{Tuple{Int32, Float32}}(undef, 0)
+#tag -> deletion -> neighbors
+function deletion_neighbors(tag::String, tag_to_index::Dict{String, Int32}, error_model, recurse)
+  neighbors = Vector{Tuple{Int32, Float32}}(undef, 0)
   word = ""
   for i in 1:length(tag)
     word = without(tag, i)
     if recurse > 0
-      append!(neighbours, prob_observed_tag_given_reals(word, tag_to_index, error_model, recurse-1))
+      append!(neighbors, prob_observed_tag_given_reals(word, tag_to_index, error_model, recurse-1))
     elseif haskey(tag_to_index, word)
-      push!(neighbours, (tag_to_index[word], 1.0))
+      push!(neighbors, (tag_to_index[word], 1.0))
     end
   end
-  return neighbours
+  return neighbors
 end
 
-#tag -> mutation -> neighbours
-function mutation_neighbours(tag::String, tag_to_index::Dict{String, Int32}, error_model, recurse)
-  neighbours = Vector{Tuple{Int32, Float32}}(undef, 0)
+#tag -> mutation -> neighbors
+function mutation_neighbors(tag::String, tag_to_index::Dict{String, Int32}, error_model, recurse)
+  neighbors = Vector{Tuple{Int32, Float32}}(undef, 0)
   word = ""
   for c in "ACTG"
     for i in 1:length(tag)
       word = replace_at(tag, i, c)
       if recurse > 0
-        append!(neighbours, prob_observed_tag_given_reals(word, tag_to_index, error_model, recurse-1))
+        append!(neighbors, prob_observed_tag_given_reals(word, tag_to_index, error_model, recurse-1))
       elseif haskey(tag_to_index, word) && word != tag
-        push!(neighbours, (tag_to_index[word], 1.0))
+        push!(neighbors, (tag_to_index[word], 1.0))
       end
     end
   end
-  return neighbours
+  return neighbors
 end
 
 function without(str::String, i)
