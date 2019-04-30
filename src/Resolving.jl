@@ -107,8 +107,8 @@ function tag_counts(path)
 end
 
 function prob_observed_tags_given_reals(tag_to_index::Dict{String, Int32}, error_model::ErrorModel, recurse=0)
-  prob_observed_tags_given_reals = Vector{Vector{Tuple{Int32, Float32}}}(undef, length(tag_to_index))
-  global memoisation = Dict{Tuple{String, Int64}, Vector{Tuple{Int32,Float32}}}()
+  prob_observed_tags_given_reals = Vector{Vector{Tuple{Int32, Float64}}}(undef, length(tag_to_index))
+  global memoisation = Dict{Tuple{String, Int64}, Vector{Tuple{Int32, Float64}}}()
   for observed_tag in keys(tag_to_index)
     observed_index = tag_to_index[observed_tag]
     prob_observed_tags_given_reals[observed_index] = prob_observed_tag_given_reals(observed_tag, tag_to_index, error_model, recurse)
@@ -121,7 +121,7 @@ function prob_observed_tag_given_reals(observed_tag::String, tag_to_index::Dict{
   if haskey(memoisation, (observed_tag, recurse))
     return memoisation[(observed_tag, recurse)]
   end
-  prob_given_reals_dict = Dict{Int32, Float32}()
+  prob_given_reals_dict = Dict{Int32, Float64}()
   ins_nbrs = insertion_neighbors(observed_tag, tag_to_index, error_model, recurse)
   for (index, prob) in ins_nbrs
     prob_given_reals_dict[index] = get(prob_given_reals_dict, index, 0.0) + error_model.error_rate * error_model.insertion_ratio * (1/4) * prob
@@ -138,7 +138,7 @@ function prob_observed_tag_given_reals(observed_tag::String, tag_to_index::Dict{
     prob_given_reals_dict[tag_to_index[observed_tag]] = (1 - error_model.error_rate) ^ length(observed_tag)
   end
   # Collate dictionary into tuple array
-  tuple_array = Vector{Tuple{Int32, Float32}}(undef, length(prob_given_reals_dict))
+  tuple_array = Vector{Tuple{Int32, Float64}}(undef, length(prob_given_reals_dict))
   i = 1
   for (index, prob) in prob_given_reals_dict
     tuple_array[i] = (index, prob)
@@ -154,7 +154,7 @@ end
 
 #tag -> insertion -> neighbors
 function insertion_neighbors(tag::String, tag_to_index::Dict{String, Int32}, error_model, recurse)
-  neighbors = Vector{Tuple{Int32, Float32}}(undef, 0)
+  neighbors = Vector{Tuple{Int32, Float64}}(undef, 0)
   word = ""
   for c in "ACTG"
     for i in 1:length(tag) + 1
@@ -171,7 +171,7 @@ end
 
 #tag -> deletion -> neighbors
 function deletion_neighbors(tag::String, tag_to_index::Dict{String, Int32}, error_model, recurse)
-  neighbors = Vector{Tuple{Int32, Float32}}(undef, 0)
+  neighbors = Vector{Tuple{Int32, Float64}}(undef, 0)
   word = ""
   for i in 1:length(tag)
     word = without(tag, i)
@@ -186,7 +186,7 @@ end
 
 #tag -> mutation -> neighbors
 function mutation_neighbors(tag::String, tag_to_index::Dict{String, Int32}, error_model, recurse)
-  neighbors = Vector{Tuple{Int32, Float32}}(undef, 0)
+  neighbors = Vector{Tuple{Int32, Float64}}(undef, 0)
   word = ""
   for c in "ACTG"
     for i in 1:length(tag)

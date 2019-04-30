@@ -1,4 +1,3 @@
-include("../src/include_all.jl")
 using Test
 
 @testset "Binning" begin

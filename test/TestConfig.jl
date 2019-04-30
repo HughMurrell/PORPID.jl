@@ -1,5 +1,5 @@
 using Test
-using HMMIDConfig
+using PORPIDConfig
 
 Base.:(==)(x::Template, y::Template) = x.name == y.name && x.reference == y.reference
 
@@ -32,12 +32,12 @@ end
 
   # Test manually specified config
   @testset "hard-coded and loaded config" begin
-    hard_coded_cfg = example_config()
-    @test typeof(hard_coded_cfg) == Configuration
+    hardcoded_cfg = example_config()
+    @test typeof(hardcoded_cfg) == Configuration
     loaded_cfg = read_from_json("test_data/test_config.json")
     @test typeof(loaded_cfg) == Configuration
-    @testset "comparing value of $field" for field in fieldnames(typeof(hard_coded_cfg))
-      @test getfield(hard_coded_cfg, field) == getfield(loaded_cfg, field)
+    @testset "comparing value of $field" for field in fieldnames(typeof(hardcoded_cfg))
+      @test getfield(hardcoded_cfg, field) == getfield(loaded_cfg, field)
     end
   end
 end

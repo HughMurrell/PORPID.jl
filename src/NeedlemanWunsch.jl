@@ -11,13 +11,13 @@ const SCORE_EPSILON = 1e-10
 #e.g. log(0.25) + log(0.01) + log(0.25) != log(0.25) + log(0.25) + log(0.01)
 
 @enum AlignOp OP_MATCH=1 OP_DEL=2 OP_INS=3
-function extract_tag(record::FASTQ.Record, states::Vector{AbstractState})
+function extract_tag(record::FASTQ.Record, states::AbstractVector{AbstractState})
   seq = FASTQ.sequence(sequence)
   quality_view = view(record.quality)
   extract_tag(seq, quality_view, states)
 end
 
-function extract_tag(seq::BioSequence{DNAAlphabet{4}}, quality, states::Vector{AbstractState})
+function extract_tag(seq::BioSequence{DNAAlphabet{4}}, quality, states::AbstractVector{AbstractState})
   rows = length(states)
   cols = length(seq) + 1 #first column is for 'before first symbol' position
   scores = zeros(Float64, rows, cols)

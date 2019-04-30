@@ -4,9 +4,9 @@ using BioSequences
 using Resolving
 using Random
 
-const extra_words = ["GATTACA", "ATTAC", "TAGACAT", "AAACCCTTTGGG"]
+const EXTRAWORDS = ["GATTACA", "ATTAC", "TAGACAT", "AAACCCTTTGGG"]
 
-function count_words(wordblock::String)
+function countwords(wordblock::String)
     count = Dict{String, Float32}()
     for word in split(wordblock)
         count[word] = get(count, word, 0.0) + 1.0
@@ -14,20 +14,20 @@ function count_words(wordblock::String)
     return count
 end
 
-function sample_word_block(wordblock::String, keep_words::Vector{String}=[])
+function samplewordblock(wordblock::String, keepwords::Vector{String}=[])
     Random.seed!(42)
-    all_words = count_words(wordblock)
+    allwords = countwords(wordblock)
     samples = Dict{String, Float32}()
-    test_words = [Random.randsubseq(collect(keys(all_words)), 0.8)..., extra_words..., keep_words...]
-    for key in test_words
-        samples[key] = get(all_words, key, 0.0)
+    testwords = [Random.randsubseq(collect(keys(allwords)), 0.8)..., EXTRAWORDS..., keepwords...]
+    for key in testwords
+        samples[key] = get(allwords, key, 0.0)
     end
-    return samples, tag_index_mapping(test_words)...
+    return samples, tag_index_mapping(testwords)...
 end
 
-function testNeighbors(tag::String, wordblock::String, neighborFunction, keep_words::Vector{String}=Vector{String}())
-        neighbor_sample_count, tag_to_index, index_to_tag = sample_word_block(wordblock, keep_words)
-        neighbors = neighborFunction(tag, tag_to_index, Resolving.PacBioErrorModel, 0)
+function test_neighbors(tag::String, wordblock::String, neighbor_function, keepwords::Vector{String}=Vector{String}())
+        neighbor_sample_count, tag_to_index, index_to_tag = samplewordblock(wordblock, keepwords)
+        neighbors = neighbor_function(tag, tag_to_index, Resolving.PacBioErrorModel, 0)
         for (tag_index, neighbor_count) in neighbors
             neighbor_sample_count[index_to_tag[tag_index]] -= neighbor_count
         end
@@ -59,8 +59,8 @@ end
                    CCAT CCAT CACT CATC
                    TCAT CTAT CATT CATT
                    GCAT CGAT CAGT CATG"""
-        keep_words = ["CAAT", "CCAT"]
-        testNeighbors(tag, words, Resolving.insertion_neighbors, keep_words)
+        keepwords = ["CAAT", "CCAT"]
+        test_neighbors(tag, words, Resolving.insertion_neighbors, keepwords)
     end
 
     @testset "Mutation Error" begin
@@ -68,14 +68,14 @@ end
         words = """AAT TAT GAT
                    CCT CTT CGT
                    CAA CAC CAG"""
-        keep_words = ["CAT"] # We assume the probability of a mutation occurring
+        keepwords = ["CAT"] # We assume the probability of a mutation occurring
         # excludes the probability that the mutation is a self mutation, whatever that might mean
-        testNeighbors(tag, words, Resolving.mutation_neighbors, keep_words)
+        test_neighbors(tag, words, Resolving.mutation_neighbors, keepwords)
     end
 
     @testset "Deletion Error" begin
         tag = "CAT"
         words = """AT CT CA"""
-        testNeighbors(tag, words, Resolving.deletion_neighbors)
+        test_neighbors(tag, words, Resolving.deletion_neighbors)
     end
 end

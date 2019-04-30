@@ -1,9 +1,9 @@
 push!(LOAD_PATH, ".")
-module HMMIDMethods
+module PORPIDMethods
 export process, process_file, sequence_to_observation, best_of_forward_and_reverse, slice_sequence
 
 using NeedlemanWunsch
-using HMMIDConfig
+using PORPIDConfig
 using States
 using BioSequences
 using Observations
@@ -15,7 +15,7 @@ const DEFAULT_QUALITY = 30
 
 function process(json_file_location, output_function)
   # Get configuration from json
-  config = HMMIDConfig.read_from_json(json_file_location)
+  config = PORPIDConfig.read_from_json(json_file_location)
   for file_name in config.files
     process_file(file_name, config, output_function)
   end
@@ -154,7 +154,7 @@ if basename(PROGRAM_FILE) == basename(@__FILE__)
   println("Processing $(ARGS[1])")
   dir_dict = Dict()
   my_output_func(source_file_name, template, tag, output_sequence, score) = write_to_file_count_to_dict(dir_dict, source_file_name, template, tag, output_sequence, score)
-  HMMIDMethods.process(ARGS[1], my_output_func)
+  PORPIDMethods.process(ARGS[1], my_output_func)
   for dir in keys(dir_dict)
     println(dir)
     sizes = []

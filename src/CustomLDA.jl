@@ -2,13 +2,14 @@ module CustomLDA
   export LDA
 
   const DEFAULT_CONCENTRATION = 0.5
+  const EPSILON = 0.00000000000000001
 
   function LDA(probabilities_array, counts=ones(Int32, length(probabilities_array)); concentration=DEFAULT_CONCENTRATION)
     tag_count = length(probabilities_array)
-    converged_epsilon = 0.00000000000000001 / tag_count
+    converged_epsilon =  EPSILON / tag_count
 
-    prior = Vector{Float32}(undef, tag_count) # aka theta
-    posterior = zeros(Float32, tag_count)
+    prior = Vector{Float64}(undef, tag_count) # aka theta
+    posterior = zeros(Float64, tag_count)
     for i in 1:tag_count
       prior[i] = 1.0/tag_count
     end
@@ -45,7 +46,7 @@ module CustomLDA
     end
 
     # Return value
-    most_likely_real_for_each_obs = Array{Tuple{Int32, Float32}}(undef, tag_count)
+    most_likely_real_for_each_obs = Array{Tuple{Int32, Float64}}(undef, tag_count)
     for obs in 1:tag_count
       best_prob = 0.0
       best_index = -1
