@@ -14,9 +14,9 @@ using Test
   end
 
   @testset "Processing basic fastq" begin
-    process_file("test_data/basic.fastq", cfg, check_bins)
+    extract_tags_from_file("test_data/basic.fastq", cfg, check_bins)
   end
   @testset "Processing more than basic fastq" begin
-    process_file("test_data/more_than_basic.fastq", cfg, check_bins)
+    extract_tags_from_file("test_data/more_than_basic.fastq", cfg, check_bins)
   end
 end

@@ -1,4 +1,5 @@
 using Test
+using PORPID
 
 @testset "Binning" begin
     include("BinningTests.jl")

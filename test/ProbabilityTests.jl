@@ -1,7 +1,5 @@
-include("../src/include_all.jl")
 using Test
-using BioSequences
-using Observations
+using PORPID
 
 @testset "Testing probabilities" begin
     @testset "Phred score to prob" begin

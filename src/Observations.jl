@@ -1,10 +1,7 @@
-push!(LOAD_PATH, ".")
-
-module Observations
 using BioSequences
-export Observation, phred_score_to_prob, prob
-export PROBABILITY_OF_INSERTION, PROBABILITY_OF_DELETION, L_PROBABILITY_OF_INSERTION, L_PROBABILITY_OF_DELETION
-export L_PROBABILITY_PER_EXTRA_BASE, L_PROBABILITY_OF_NORMAL_TRANSITION
+#export Observation, phred_score_to_prob, prob
+#export PROBABILITY_OF_INSERTION, PROBABILITY_OF_DELETION, L_PROBABILITY_OF_INSERTION, L_PROBABILITY_OF_DELETION
+#export L_PROBABILITY_PER_EXTRA_BASE, L_PROBABILITY_OF_NORMAL_TRANSITION
 
 const PROBABILITY_OF_INSERTION = 0.01
 const PROBABILITY_OF_DELETION = 0.01
@@ -54,6 +51,4 @@ end
 
 function prob(expected::DNA, observed::DNA, prob_observed::AbstractFloat)
   return prob(expected, 1.0, observed, prob_observed)
-end
-
 end

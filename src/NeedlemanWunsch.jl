@@ -1,9 +1,6 @@
-push!(LOAD_PATH, ".")
-module NeedlemanWunsch
 using BioSequences
-using Observations
-using States
-export extract_tag
+using PORPID
+#export extract_tag
 
 const STAR_INSERTION_SCORE = 0
 const SCORE_EPSILON = 1e-10
@@ -114,5 +111,4 @@ function extract_tag(seq::BioSequence{DNAAlphabet{4}}, quality, states::Abstract
     end
   end
   return (scores[rows,cols], tag, errors)
-end
 end

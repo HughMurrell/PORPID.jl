@@ -1,5 +1,5 @@
 using Test
-using PORPIDConfig
+using PORPID
 
 Base.:(==)(x::Template, y::Template) = x.name == y.name && x.reference == y.reference
 
@@ -34,7 +34,7 @@ end
   @testset "hard-coded and loaded config" begin
     hardcoded_cfg = example_config()
     @test typeof(hardcoded_cfg) == Configuration
-    loaded_cfg = read_from_json("test_data/test_config.json")
+    loaded_cfg = load_config_from_json("test_data/test_config.json")
     @test typeof(loaded_cfg) == Configuration
     @testset "comparing value of $field" for field in fieldnames(typeof(hardcoded_cfg))
       @test getfield(hardcoded_cfg, field) == getfield(loaded_cfg, field)

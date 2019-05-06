@@ -1,28 +1,21 @@
-push!(LOAD_PATH, ".")
-module PORPIDMethods
-export process, process_file, sequence_to_observation, best_of_forward_and_reverse, slice_sequence
-
-using NeedlemanWunsch
-using PORPIDConfig
-using States
+#export extract_tags, extract_tags_from_file, sequence_to_observation, best_of_forward_and_reverse, slice_sequence
 using BioSequences
-using Observations
+using PORPID
 
 const DEFAULT_MAX_ERRORS = 2
 const DEFAULT_MAX_FILE_DESCRIPTORS = 1024
 const OUTPUT_FOLDER = "output"
 const DEFAULT_QUALITY = 30
 
-function process(json_file_location, output_function)
+function extract_tags(config::Configuration, output_function)
   # Get configuration from json
-  config = PORPIDConfig.read_from_json(json_file_location)
   for file_name in config.files
-    process_file(file_name, config, output_function)
+    extract_tags_from_file(file_name, config, output_function)
   end
 end
 
 # For every file
-function process_file(file_name, config, output_function; print_every=0, print_callback=x->println("Processed $(x) sequences"))
+function extract_tags_from_file(file_name, config, output_function; print_every=0, print_callback=x->println("Processed $(x) sequences"))
   start_i = config.start_inclusive
   r_start_i = config.reverse_start_inclusive
   end_i = config.end_inclusive
@@ -110,7 +103,7 @@ function choose_best_template(seq, quality, templates)
   best_tag = nothing
   best_errors = nothing
   for template in templates
-    score, tag, errors = NeedlemanWunsch.extract_tag(seq, quality, template.reference)
+    score, tag, errors = extract_tag(seq, quality, template.reference)
     if score >= best_score
       best_score, best_template, best_tag, best_errors = score, template, tag, errors
     end
@@ -152,9 +145,10 @@ end
 
 if basename(PROGRAM_FILE) == basename(@__FILE__)
   println("Processing $(ARGS[1])")
+  config = load_config_from_json(ARGS[1])
   dir_dict = Dict()
   my_output_func(source_file_name, template, tag, output_sequence, score) = write_to_file_count_to_dict(dir_dict, source_file_name, template, tag, output_sequence, score)
-  PORPIDMethods.process(ARGS[1], my_output_func)
+  extract_tags(my_output_func)
   for dir in keys(dir_dict)
     println(dir)
     sizes = []
@@ -166,5 +160,4 @@ if basename(PROGRAM_FILE) == basename(@__FILE__)
       println(key, "\t", size)
     end
   end
-end
 end

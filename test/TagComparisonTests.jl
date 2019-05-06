@@ -1,7 +1,6 @@
-include("../src/include_all.jl")
 using Test
 using BioSequences
-using Resolving
+using PORPID
 using Random
 
 const EXTRAWORDS = ["GATTACA", "ATTAC", "TAGACAT", "AAACCCTTTGGG"]
@@ -27,7 +26,7 @@ end
 
 function test_neighbors(tag::String, wordblock::String, neighbor_function, keepwords::Vector{String}=Vector{String}())
         neighbor_sample_count, tag_to_index, index_to_tag = samplewordblock(wordblock, keepwords)
-        neighbors = neighbor_function(tag, tag_to_index, Resolving.PacBioErrorModel, 0)
+        neighbors = neighbor_function(tag, tag_to_index, PORPID.PacBioErrorModel, 0)
         for (tag_index, neighbor_count) in neighbors
             neighbor_sample_count[index_to_tag[tag_index]] -= neighbor_count
         end
@@ -39,9 +38,9 @@ end
 @testset "Testing tag error model" begin
 
     @testset "String manipulation" begin
-        @test Resolving.insert_at("GATTACA", 4, "A") == "GATATACA"
-        @test Resolving.replace_at("GATTACA", 2, "C") == "GCTTACA"
-        @test Resolving.without("GATTACA", 6) == "GATTAA"
+        @test PORPID.insert_at("GATTACA", 4, "A") == "GATATACA"
+        @test PORPID.replace_at("GATTACA", 2, "C") == "GCTTACA"
+        @test PORPID.without("GATTACA", 6) == "GATTAA"
     end
 
     @testset "TagToIndexMapping" begin
@@ -60,7 +59,7 @@ end
                    TCAT CTAT CATT CATT
                    GCAT CGAT CAGT CATG"""
         keepwords = ["CAAT", "CCAT"]
-        test_neighbors(tag, words, Resolving.insertion_neighbors, keepwords)
+        test_neighbors(tag, words, PORPID.insertion_neighbors, keepwords)
     end
 
     @testset "Mutation Error" begin
@@ -70,12 +69,12 @@ end
                    CAA CAC CAG"""
         keepwords = ["CAT"] # We assume the probability of a mutation occurring
         # excludes the probability that the mutation is a self mutation, whatever that might mean
-        test_neighbors(tag, words, Resolving.mutation_neighbors, keepwords)
+        test_neighbors(tag, words, PORPID.mutation_neighbors, keepwords)
     end
 
     @testset "Deletion Error" begin
         tag = "CAT"
         words = """AT CT CA"""
-        test_neighbors(tag, words, Resolving.deletion_neighbors)
+        test_neighbors(tag, words, PORPID.deletion_neighbors)
     end
 end

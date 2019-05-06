@@ -1,8 +1,5 @@
-push!(LOAD_PATH, ".")
-module Resolving
-export tag_index_mapping, prob_observed_tags_given_reals, index_counts
-
-using CustomLDA
+#export resolve_tags_in_dir, tag_index_mapping, prob_observed_tags_given_reals, index_counts
+using PORPID
 
 const REJECT_TAG = "REJECTS"
 
@@ -16,7 +13,7 @@ end
 PacBioErrorModel(error_rate=0.005) = ErrorModel(error_rate, 0.4, 0.4, 0.2)
 IlluminaErrorModel(error_rate=0.001) = ErrorModel(error_rate, 0.05, 0.05, 0.9)
 
-function process(path, error_model=PacBioErrorModel())
+function resolve_tags_in_dir(path, error_model=PacBioErrorModel())
   path = normpath(path)
   println(STDERR, "Reading tag files...")
   counts = tag_counts(path)
@@ -31,7 +28,7 @@ function process(path, error_model=PacBioErrorModel())
   indexed_counts = index_counts(counts, tag_to_index)
 
   println(STDERR, "Iterating..."  )
-  most_likely_real_for_each_obs = CustomLDA.LDA(probabilities_array, indexed_counts)
+  most_likely_real_for_each_obs = LDA(probabilities_array, indexed_counts)
 
   tag_count = length(most_likely_real_for_each_obs)
   for observed_index in 1:tag_count
@@ -214,6 +211,5 @@ function replace_at(str::String, i, c)
 end
 
 if PROGRAM_FILE == @__FILE__
-  process(ARGS[1])
-end
+  resolve_tags_in_dir(ARGS[1])
 end

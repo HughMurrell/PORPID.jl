@@ -1,9 +1,6 @@
-push!(LOAD_PATH, ".")
-module PORPIDConfig
-export Configuration, Template, fasta, fastq, read_from_json
+#export Configuration, Template, fasta, fastq, load_config_from_json
 import JSON
-
-using States
+using PORPID
 
 struct Template
   name::AbstractString
@@ -33,7 +30,7 @@ end
 
 Configuration() = Configuration(Vector{AbstractString}(undef, 0), fastq, -1, -1, -1, -1, 4, false, Vector{Template}(undef, 0))
 
-function read_from_json(json_file_location)
+function load_config_from_json(json_file_location)
   config = Configuration()
   params = JSON.parsefile(json_file_location)
   config.files = params["files"]
@@ -51,6 +48,4 @@ function read_from_json(json_file_location)
     push!(config.templates, template)
   end
   return config
-end
-
 end
