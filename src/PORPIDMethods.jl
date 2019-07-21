@@ -15,7 +15,7 @@ function extract_tags(config::Configuration, output_function)
 end
 
 # For every file
-function extract_tags_from_file(file_name, config, output_function; print_every=0, print_callback=x->println("Processed $(x) sequences"))
+function extract_tags_from_file(file_name, config, output_function; print_every=0, print_callback=x->println("Processed $(x) sequences"), ignore_phreds_for_tag_extraction = true)
   start_i = config.start_inclusive
   r_start_i = config.reverse_start_inclusive
   end_i = config.end_inclusive
@@ -36,9 +36,15 @@ function extract_tags_from_file(file_name, config, output_function; print_every=
                               fill(Int8(DEFAULT_QUALITY), length(FASTA.sequence(sequence))))
     end
     forward_seq, forward_quality = slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, false)
+    if ignore_phreds_for_tag_extraction
+      forward_quality = fill(Int8(DEFAULT_QUALITY),length(forward_quality)) #Disabling quality for NNNN matching...
+    end
     is_reverse_complement = false
     if try_reverse_complement
       reverse_seq, reverse_quality = slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, true)
+      if ignore_phreds_for_tag_extraction
+        reverse_quality = fill(Int8(DEFAULT_QUALITY),length(reverse_quality)) #Disabling quality for NNNN matching...
+      end
       best_score, best_template, best_tag, best_errors, is_reverse_complement = best_of_forward_and_reverse(forward_seq, forward_quality, reverse_seq, reverse_quality, config.templates)
     else
       best_score, best_template, best_tag, best_errors = choose_best_template(forward_seq, forward_quality, config.templates)
