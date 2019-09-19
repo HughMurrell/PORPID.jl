@@ -1,13 +1,10 @@
-push!(LOAD_PATH, ".")
-
-module States
 using BioSequences
-using Observations
+using PORPID
 
-export AbstractState, AbstractStartingState, StartingState
-export AbstractRepeatingAnyState, RepeatingAnyState, AbstractObservableState
-export ObservableState, AbstractBarcodeState, BarcodeState
-export string_to_state_array
+#export AbstractState, AbstractStartingState, StartingState
+#export AbstractRepeatingAnyState, RepeatingAnyState, AbstractObservableState
+#export ObservableState, AbstractBarcodeState, BarcodeState
+#export string_to_state_array
 
 abstract type AbstractState end
 abstract type AbstractStartingState <: AbstractState end
@@ -38,7 +35,7 @@ function string_to_state_array(string_sequence::String)
   for char in string_sequence
     if char == '*'
       state = RepeatingAnyState()
-    elseif islower(char)
+    elseif islowercase(char)
       state = BarcodeState(convert(DNA, char))
     else
       state = ObservableState(convert(DNA, char))
@@ -46,5 +43,4 @@ function string_to_state_array(string_sequence::String)
     push!(states, state)
   end
   return states
-end
 end

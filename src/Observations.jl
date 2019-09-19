@@ -1,10 +1,7 @@
-push!(LOAD_PATH, ".")
-
-module Observations
 using BioSequences
-export Observation, sequence_to_observations, phred_score_to_prob, prob
-export PROBABILITY_OF_INSERTION, PROBABILITY_OF_DELETION, L_PROBABILITY_OF_INSERTION, L_PROBABILITY_OF_DELETION
-export L_PROBABILITY_PER_EXTRA_BASE, L_PROBABILITY_OF_NORMAL_TRANSITION
+#export Observation, phred_score_to_prob, prob
+#export PROBABILITY_OF_INSERTION, PROBABILITY_OF_DELETION, L_PROBABILITY_OF_INSERTION, L_PROBABILITY_OF_DELETION
+#export L_PROBABILITY_PER_EXTRA_BASE, L_PROBABILITY_OF_NORMAL_TRANSITION
 
 const PROBABILITY_OF_INSERTION = 0.01
 const PROBABILITY_OF_DELETION = 0.01
@@ -19,10 +16,10 @@ function phred_score_to_prob(score)
   return 1 - prob_wrong
 end
 
-function fancy_prob(a::DNA, probA::Float64, b::DNA, probB::Float64)
+function fancy_prob(a::DNA, probA::AbstractFloat, b::DNA, probB::AbstractFloat)
   a_b, a_nb, na_b, na_nb = 0, 0, 0, 0
-  A = UInt8(a)
-  B = UInt8(b)
+  A = convert(UInt8, a)
+  B = convert(UInt8, b)
 
   mask = 0x01
   while mask <= 0x08
@@ -48,12 +45,10 @@ function fancy_prob(a::DNA, probA::Float64, b::DNA, probB::Float64)
          na_b * norm_na * norm_b + na_nb * norm_na * norm_nb
 end
 
-function prob(expected::DNA, prob_expected::Float64, observed::DNA, prob_observed::Float64)
+function prob(expected::DNA, prob_expected::AbstractFloat, observed::DNA, prob_observed::AbstractFloat)
   return fancy_prob(expected, prob_expected, observed, prob_observed)
 end
 
-function prob(expected::DNA, observed::DNA, prob_observed::Float64)
+function prob(expected::DNA, observed::DNA, prob_observed::AbstractFloat)
   return prob(expected, 1.0, observed, prob_observed)
-end
-
 end

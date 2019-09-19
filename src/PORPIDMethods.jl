@@ -1,28 +1,21 @@
-push!(LOAD_PATH, ".")
-module HMMIDMethods
-export process, process_file, sequence_to_observation, best_of_forward_and_reverse, slice_sequence
-
-using NeedlemanWunsch
-using HMMIDConfig
-using States
+#export extract_tags, extract_tags_from_file, sequence_to_observation, best_of_forward_and_reverse, slice_sequence
 using BioSequences
-using Observations
+using PORPID
 
 const DEFAULT_MAX_ERRORS = 2
 const DEFAULT_MAX_FILE_DESCRIPTORS = 1024
 const OUTPUT_FOLDER = "output"
 const DEFAULT_QUALITY = 30
 
-function process(json_file_location, output_function)
+function extract_tags(config::Configuration, output_function)
   # Get configuration from json
-  config = HMMIDConfig.read_from_json(json_file_location)
   for file_name in config.files
-    process_file(file_name, config, output_function)
+    extract_tags_from_file(file_name, config, output_function)
   end
 end
 
 # For every file
-function process_file(file_name, config, output_function; print_every=0, print_callback=x->println("Processed $(x) sequences"))
+function extract_tags_from_file(file_name, config, output_function; print_every=0, print_callback=x->println("Processed $(x) sequences"), ignore_phreds_for_tag_extraction = true)
   start_i = config.start_inclusive
   r_start_i = config.reverse_start_inclusive
   end_i = config.end_inclusive
@@ -43,9 +36,15 @@ function process_file(file_name, config, output_function; print_every=0, print_c
                               fill(Int8(DEFAULT_QUALITY), length(FASTA.sequence(sequence))))
     end
     forward_seq, forward_quality = slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, false)
+    if ignore_phreds_for_tag_extraction
+      forward_quality = fill(Int8(DEFAULT_QUALITY),length(forward_quality)) #Disabling quality for NNNN matching...
+    end
     is_reverse_complement = false
     if try_reverse_complement
       reverse_seq, reverse_quality = slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, true)
+      if ignore_phreds_for_tag_extraction
+        reverse_quality = fill(Int8(DEFAULT_QUALITY),length(reverse_quality)) #Disabling quality for NNNN matching...
+      end
       best_score, best_template, best_tag, best_errors, is_reverse_complement = best_of_forward_and_reverse(forward_seq, forward_quality, reverse_seq, reverse_quality, config.templates)
     else
       best_score, best_template, best_tag, best_errors = choose_best_template(forward_seq, forward_quality, config.templates)
@@ -94,11 +93,6 @@ function slice_sequence(sequence, start_i, r_start_i, end_i, r_end_i, do_reverse
   return seq, quality
 end
 
-#start_i, end_i -> -end_i, -start_i
-function tail_indices(start_index, end_index, length)
-  return (py_index_to_julia(-end_index, length, true), py_index_to_julia(-start_index, length, true))
-end
-
 function best_of_forward_and_reverse(forward_seq, forward_quality, reverse_seq, reverse_quality, templates)
   forward_best_score, forward_best_template, forward_best_tag, forward_best_errors = choose_best_template(forward_seq, forward_quality, templates)
   reverse_best_score, reverse_best_template, reverse_best_tag, reverse_best_errors = choose_best_template(reverse_seq, reverse_quality, templates)
@@ -115,7 +109,7 @@ function choose_best_template(seq, quality, templates)
   best_tag = nothing
   best_errors = nothing
   for template in templates
-    score, tag, errors = NeedlemanWunsch.extract_tag(seq, quality, template.reference)
+    score, tag, errors = extract_tag(seq, quality, template.reference)
     if score >= best_score
       best_score, best_template, best_tag, best_errors = score, template, tag, errors
     end
@@ -157,9 +151,10 @@ end
 
 if basename(PROGRAM_FILE) == basename(@__FILE__)
   println("Processing $(ARGS[1])")
+  config = load_config_from_json(ARGS[1])
   dir_dict = Dict()
   my_output_func(source_file_name, template, tag, output_sequence, score) = write_to_file_count_to_dict(dir_dict, source_file_name, template, tag, output_sequence, score)
-  HMMIDMethods.process(ARGS[1], my_output_func)
+  extract_tags(my_output_func)
   for dir in keys(dir_dict)
     println(dir)
     sizes = []
@@ -171,5 +166,4 @@ if basename(PROGRAM_FILE) == basename(@__FILE__)
       println(key, "\t", size)
     end
   end
-end
 end
