@@ -1,4 +1,4 @@
-using BioSequences
+using BioSequences, FASTX
 using PORPID
 #export extract_tag
 
