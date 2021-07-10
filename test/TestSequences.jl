@@ -1,6 +1,6 @@
 using Test
 
-using BioSequences
+using BioSequences, FASTX
 using PORPID
 
 function getsequences(filename)::Vector{FASTQ.Record}

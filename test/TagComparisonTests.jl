@@ -1,5 +1,5 @@
 using Test
-using BioSequences
+using BioSequences, FASTX
 using PORPID
 using Random
 

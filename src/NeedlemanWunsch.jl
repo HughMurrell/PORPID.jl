@@ -71,7 +71,7 @@ function extract_tag(seq::BioSequence{DNAAlphabet{4}}, quality, states::Abstract
   end
 
   #Construct tag from score and operation matrices
-  tag = DNASequence()
+  tag = LongDNASeq()  # DNASequence()
   errors = 0
   r = rows
   c = cols

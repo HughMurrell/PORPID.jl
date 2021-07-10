@@ -1,17 +1,11 @@
 name = "PORPID"
 uuid = "77e13452-6b24-11e9-337f-5707c85b7dc6"
-authors = ["Robert Ketteringham <robket@gmail.com>", "Ben Murrell <murrellb@gmail.com>"]
+authors = ["Robert Ketteringham <robket@gmail.com>", "Ben Murrell <murrellb@gmail.com>", "Hugh Murrell <hugh.murrell@gmail.com>"]
 version = "0.1.0"
 
 [deps]
 BioSequences = "7e6ae17a-c86d-528c-b3b9-7f778a29fe59"
-Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
 FASTX = "c2308a5c-f048-11e8-3e8a-31650f418d12"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
-
-[extras]
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["Random", "Test"]
