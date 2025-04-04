@@ -43,6 +43,7 @@ export # Resolvng
     index_counts
 
 using BioSequences
+using CodecZlib
 
 include("States.jl")
 include("CustomLDA.jl")
