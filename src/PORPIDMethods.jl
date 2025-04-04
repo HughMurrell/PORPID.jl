@@ -118,7 +118,7 @@ function choose_best_template(seq, quality, templates)
   best_tag = nothing
   best_errors = nothing
   for template in templates
-    score, tag, errors = extract_tag(seq, quality, template.reference)
+    score, tag, errors = extract_tag(LongDNA{4}(seq), quality, template.reference)
     if score >= best_score
       best_score, best_template, best_tag, best_errors = score, template, tag, errors
     end
